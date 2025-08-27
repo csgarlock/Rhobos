@@ -3,7 +3,7 @@ pub type Square   = u8;
 pub type Board = [Bitboard; 12];
 
 #[derive(Clone, Copy)]
-enum Color {
+pub enum Color {
     White,
     Black,
 }
@@ -45,7 +45,15 @@ impl Color {
     }
 
     #[inline(always)]
-    pub fn board_offset(self) -> usize {
+    pub fn value(self) -> u8 {
+        match self {
+            Color::White => {0},
+            Color::Black => {1},
+        }
+    }
+
+    #[inline(always)]
+    pub fn board_offset(self) -> u8 {
         match self {
             Color::White => {0},
             Color::Black => {6},
@@ -78,6 +86,17 @@ pub const fn bit_count(b: Bitboard) -> u32 {
 #[inline(always)]
 pub const fn board_from_square(s: Square) -> Bitboard {
     1 << (s as Bitboard)
+}
+
+pub fn square_from_string(string: String) -> Square {
+    let rank = string[1..].parse::<Square>().unwrap() - 1;
+    let mut file: u8 = 0;
+    for (i, r) in FILE_MAP.iter().enumerate() {
+        if string.chars().nth(0).unwrap() == *r {
+            file = i as u8;
+        }
+    }
+    rank * 8 + file
 }
 
 pub fn pretty_string_bitboard(b: Bitboard) -> String {
