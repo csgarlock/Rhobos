@@ -62,9 +62,9 @@ impl Color {
 }
 
 #[inline(always)]
-pub const fn rank(s: Square) -> i8 { (s / 8) as i8 }
+pub const fn rank(s: Square) -> u8 { (s / 8) as u8 }
 #[inline(always)]
-pub const fn file(s: Square) -> i8 { (s % 8) as i8 }
+pub const fn file(s: Square) -> u8 { (s % 8) as u8 }
 
 #[inline(always)]
 pub const fn get_lsb(b: Bitboard) -> Square {
