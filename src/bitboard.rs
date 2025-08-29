@@ -31,13 +31,18 @@ pub const FILE7: Bitboard = FILE0 << 7;
 
 pub const NULL_SQUARE: Square = 100;
 
+pub const WHITE_VAL: u8 = 0;
+pub const BLACK_VAL: u8 = 1;
+pub const WHITE_OFFSET: u8 = 0;
+pub const BLACK_OFFSET: u8 = 6;
+
 pub const RANKS: [Bitboard; 8] = [RANK0, RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7];
 pub const FILES: [Bitboard; 8] = [FILE0, FILE2, FILE2, FILE3, FILE4, FILE5, FILE6, FILE7];
 pub const FILE_MAP: [char; 8] =  ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 impl Color {
     #[inline(always)]
-    pub fn swap(self) -> Color {
+    pub const fn other(self) -> Color {
         match self {
             Color::White => {Color::Black},
             Color::Black => {Color::White},
@@ -45,26 +50,26 @@ impl Color {
     }
 
     #[inline(always)]
-    pub fn value(self) -> u8 {
+    pub const fn value(self) -> u8 {
         match self {
-            Color::White => {0},
-            Color::Black => {1},
+            Color::White => {WHITE_VAL},
+            Color::Black => {BLACK_VAL},
         }
     }
 
     #[inline(always)]
-    pub fn board_offset(self) -> u8 {
+    pub const fn board_offset(self) -> u8 {
         match self {
-            Color::White => {0},
-            Color::Black => {6},
+            Color::White => {WHITE_OFFSET},
+            Color::Black => {BLACK_OFFSET},
         }
     }
 }
 
 #[inline(always)]
-pub const fn rank(s: Square) -> i8 { (s / 8) as i8 }
+pub const fn rank(s: Square) -> u8 { (s / 8) as u8 }
 #[inline(always)]
-pub const fn file(s: Square) -> i8 { (s % 8) as i8 }
+pub const fn file(s: Square) -> u8 { (s % 8) as u8 }
 
 #[inline(always)]
 pub const fn get_lsb(b: Bitboard) -> Square {
@@ -86,6 +91,10 @@ pub const fn bit_count(b: Bitboard) -> u32 {
 #[inline(always)]
 pub const fn board_from_square(s: Square) -> Bitboard {
     1 << (s as Bitboard)
+}
+
+pub const fn is_valid_square(s: Square) -> bool {
+    s < 64
 }
 
 pub fn square_from_string(string: String) -> Square {

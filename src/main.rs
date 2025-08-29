@@ -1,17 +1,18 @@
 #![feature(adt_const_params)]
-use crate::{bitboard::{pretty_string_bitboard, UNIVERSAL_BITBOARD}, r#move::build_move};
+#![allow(static_mut_refs)]
+#![allow(dead_code)]
+#![allow(unused)]
+
+use crate::{bitboard::{pretty_string_bitboard, pretty_string_square, square_from_string, UNIVERSAL_BITBOARD}, r#move::{build_move, simple_move_from_string}, piece_info::movement_info_init};
 
 mod bitboard;
+mod piece_info;
 mod state;
+mod magic;
 mod r#move;
 
 fn main() {
-    println!("{}", build_move(5, 12, 2, 1));
-    foo();
-}
-
-#[inline(never)]
-fn foo() {
-    println!("Hello, World!");
-    println!("Freaky World!");
+    movement_info_init();
+    let e2 = square_from_string("e2".to_string());
+    println!("{}", pretty_string_square(e2));
 }
