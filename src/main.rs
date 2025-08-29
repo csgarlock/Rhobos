@@ -3,9 +3,10 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
-use crate::{bitboard::{pretty_string_bitboard, pretty_string_square, square_from_string, Bitboard, UNIVERSAL_BITBOARD}, magic::SubsetIterator, r#move::{build_move, simple_move_from_string}, piece_info::movement_info_init};
+use crate::{bitboard::{pretty_string_bitboard, pretty_string_square, square_from_string, Bitboard, Square, UNIVERSAL_BITBOARD}, magic::{find_blocked_sliding_attacks, SubsetIterator}, r#move::{build_move, simple_move_from_string}, piece_info::{move_bitboard, movement_info_init, PieceType}};
 
 mod bitboard;
+mod histories;
 mod piece_info;
 mod state;
 mod magic;
@@ -13,8 +14,12 @@ mod r#move;
 
 fn main() {
     movement_info_init();
-    let e2 = square_from_string("e2".to_string());
-    println!("{}", pretty_string_square(e2));
+    let square: Square = 36;
+    let bitboard: Bitboard = 65280;
+    println!("{}", pretty_string_bitboard(find_blocked_sliding_attacks::< { PieceType::Rook }>(square, bitboard).unwrap()));
+    println!("{}", pretty_string_square(square));
+    println!("{}", pretty_string_bitboard(bitboard));
+    println!("{}", pretty_string_bitboard(move_bitboard::< { PieceType::Rook }>(square, bitboard)))
 }
 
 fn bools_to_u64(bits: [bool; 64]) -> Bitboard {

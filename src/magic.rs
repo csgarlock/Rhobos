@@ -1,6 +1,6 @@
 use rand::{rng, rngs, RngCore};
 
-use crate::{bitboard::{bit_count, board_from_square, file, rank, Bitboard, Square, EMPTY_BITBOARD, FILE0, FILE7, FILES, RANK0, RANK7, RANKS}, piece_info::{can_step, make_step, PieceType, MOVE_BOARDS}};
+use crate::{bitboard::{bit_count, board_from_square, file, pretty_string_bitboard, rank, Bitboard, Square, EMPTY_BITBOARD, FILE0, FILE7, FILES, RANK0, RANK7, RANKS}, piece_info::{can_step, make_step, PieceType, MOVE_BOARDS}};
 
 #[derive(Clone, Copy)]
 pub struct Magic {
@@ -101,7 +101,7 @@ fn find_magic<const P: PieceType>(square: Square, magic: &mut Magic, magic_table
     table_size
 } 
 
-fn find_blocked_sliding_attacks<const P: PieceType>(square: Square, mut blockers: Bitboard) -> Option<Bitboard> {
+pub fn find_blocked_sliding_attacks<const P: PieceType>(square: Square, mut blockers: Bitboard) -> Option<Bitboard> {
     if !P.is_slider() {return None;}
     let mut result = EMPTY_BITBOARD;
     if board_from_square(square) & blockers != EMPTY_BITBOARD {
