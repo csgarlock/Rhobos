@@ -89,10 +89,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xoshiro"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f703f4665700daf5512dcca5f43afa6af89f09db47fb56be587f80636bda2d41"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
 name = "rhobos"
 version = "0.1.0"
 dependencies = [
  "rand",
+ "rand_xoshiro",
 ]
 
 [[package]]
