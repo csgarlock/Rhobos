@@ -1,5 +1,3 @@
-use std::io::Empty;
-
 use rand::{rng, rngs, RngCore};
 
 use crate::{bitboard::{bit_count, board_from_square, file, rank, Bitboard, Square, EMPTY_BITBOARD, FILE0, FILE7, FILES, RANK0, RANK7, RANKS}, piece_info::{can_step, make_step, PieceType, MOVE_BOARDS}};
@@ -13,14 +11,15 @@ pub struct Magic {
 }
 
 #[derive(Clone, Copy)]
-struct SubsetIterator {
+pub struct SubsetIterator {
     n: Bitboard,
     d: Bitboard,
+    done: bool,
 }
 
 impl SubsetIterator {
-    fn new(board: Bitboard) -> SubsetIterator {
-        SubsetIterator { n: 0, d: board }
+    pub fn new(board: Bitboard) -> SubsetIterator {
+        SubsetIterator { n: 0, d: board, done: false}
     }
 }
 
@@ -28,12 +27,15 @@ impl Iterator for SubsetIterator {
     type Item = Bitboard;
     
     fn next(&mut self) -> Option<Self::Item> {
-        self.n = (self.n - self.d) & self.d;
-        if self.n == 0 {
-            None
-        } else {
-            Some(self.n)
+        if self.done {
+            return None;
         }
+        let return_val = self.n;
+        self.n = (self.n.wrapping_sub(self.d)) & self.d;
+        if self.n == 0 {
+           self.done = true;
+        }
+        Some(return_val)
     }
 }
 
@@ -44,33 +46,36 @@ pub static mut BISHOP_TABLE: [Bitboard; 0x1480] = [EMPTY_BITBOARD; 0x1480];
 pub static mut ROOK_TABLE: [Bitboard; 0x19000] = [EMPTY_BITBOARD; 0x19000];
 
 pub fn magic_init() {
-    let mut running_bishop_offset = 0;
-    let mut running_rook_offset = 0;
+    let mut running_rook_offset: usize = 0;
+    let mut running_bishop_offset: usize = 0;
     for square in 0..64 {
-        find_magics_for_square(square, running_bishop_offset, running_rook_offset);
+        unsafe {
+            let rook_offset= find_magic::<{ PieceType::Rook }>(square, &mut ROOK_MAGICS[square as usize], &mut ROOK_TABLE[running_rook_offset..]);
+            let bishop_offset = find_magic::<{ PieceType::Bishop }>(square, &mut BISHOP_MAGICS[square as usize], &mut BISHOP_TABLE[running_bishop_offset..]);
+            unsafe { ROOK_MAGICS[square as usize].offset = running_rook_offset as u32 };
+            unsafe { BISHOP_MAGICS[square as usize].offset = running_bishop_offset as u32 };
+            running_rook_offset += rook_offset;
+            running_bishop_offset += bishop_offset;
+        }
     }
 }
 
-fn find_magics_for_square(square: Square, bishop_offset: u32, rook_offset: u32) {
-
-}
-
-fn find_magic<const P: PieceType>(square: Square, magic: &mut Magic, magic_table: &mut [Bitboard]) {
+fn find_magic<const P: PieceType>(square: Square, magic: &mut Magic, magic_table: &mut [Bitboard]) -> usize {
     match P {
-        PieceType::King | PieceType::Queen | PieceType::Pawn | PieceType::Knight => return,
+        PieceType::King | PieceType::Queen | PieceType::Pawn | PieceType::Knight => return 0,
         _ => (),
     }
     let index = P.value();
     let attacks_board = unsafe { MOVE_BOARDS[index as usize][square as usize] };
     let mask = attacks_board & (!(RANK0 | RANK7) | RANKS[rank(square) as usize]) & (!(FILE0 | FILE7) | FILES[file(square) as usize]);
     let bitcount = bit_count(mask);
-    let table_size = 1u32 << bitcount;
+    let table_size = 1usize << bitcount;
     magic.mask = mask;
     magic.index = bitcount as u8;
-    let mut test_table: Vec<u64> = vec![0; table_size as usize];
-    let mut found_table = vec![false; table_size as usize];
+    let mut test_table: Vec<u64> = vec![0; table_size];
+    let mut found_table = vec![false; table_size];
     let mut rng = rng();
-    for (i, blockers) in SubsetIterator::new(attacks_board).enumerate() {
+    for (i, blockers) in SubsetIterator::new(mask).enumerate() {
         test_table[i] = find_blocked_sliding_attacks::<P>(square, blockers).unwrap();
     }
     loop {
@@ -78,7 +83,7 @@ fn find_magic<const P: PieceType>(square: Square, magic: &mut Magic, magic_table
         magic.magic_number = test_magic;
         found_table.fill(false);
         let mut good_table = true;
-        for (i, blockers) in SubsetIterator::new(attacks_board).enumerate() {
+        for (i, blockers) in SubsetIterator::new(mask).enumerate() {
             let moves = test_table[i];
             let table_index = get_magic_index(magic, blockers);
             if found_table[table_index] {
@@ -93,13 +98,11 @@ fn find_magic<const P: PieceType>(square: Square, magic: &mut Magic, magic_table
             break;
         }
     }
+    table_size
 } 
 
 fn find_blocked_sliding_attacks<const P: PieceType>(square: Square, mut blockers: Bitboard) -> Option<Bitboard> {
-    match P {
-        PieceType::King | PieceType::Knight | PieceType::Pawn => {return None},
-        _ => (),
-    }
+    if !P.is_slider() {return None;}
     let mut result = EMPTY_BITBOARD;
     if board_from_square(square) & blockers != EMPTY_BITBOARD {
         blockers ^= board_from_square(square);

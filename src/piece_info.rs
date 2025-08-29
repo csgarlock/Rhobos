@@ -1,6 +1,7 @@
 use std::{hint::unreachable_unchecked};
 use std::marker::ConstParamTy;
-use crate::bitboard::{board_from_square, file, is_valid_square, rank, Bitboard, Color, Square, BLACK_OFFSET, BLACK_VAL, EMPTY_BITBOARD, WHITE_OFFSET, WHITE_VAL};
+use crate::bitboard::{board_from_square, file, is_valid_square, pretty_string_bitboard, rank, Bitboard, Color, Square, BLACK_OFFSET, BLACK_VAL, EMPTY_BITBOARD, WHITE_OFFSET, WHITE_VAL};
+use crate::bools_to_u64;
 use crate::magic::{get_magic_index, magic_init, BISHOP_MAGICS, BISHOP_TABLE, ROOK_MAGICS, ROOK_TABLE};
 
 pub type Step = i8;
@@ -126,8 +127,8 @@ fn step_info_init() {
         let rank_diff = rank(center_step_square).wrapping_sub(CENTER_RANK);
         let file_diff = file(center_step_square).wrapping_sub(CENTER_FILE);
         for square in 0..64 {
-            let step_square = make_step(square, *step);
-            if rank(step_square) - rank(square) == rank_diff && file(step_square) - file(square) == file_diff {
+            let step_square = make_step(square, *step) % 64;
+            if rank(step_square).wrapping_sub(rank(square)) == rank_diff && file(step_square).wrapping_sub(file(square)) == file_diff {
                 unsafe { CAN_STEP_TABLE[i][square as usize] = true };
             } else {
                 unsafe { CAN_STEP_TABLE[i][square as usize] = false };
@@ -139,21 +140,23 @@ fn step_info_init() {
 fn fill_moves_boards<const P: PieceType>() {
     match P {
         PieceType::Queen | PieceType::Rook | PieceType::Bishop => {
+            let piece_index = P.value() as usize;
             for step in P.steps() {
                 for square in 0..64 {
                     let mut step_square = square;
                     while unsafe { can_step(step_square, *step) } {
                         step_square = make_step(step_square, *step);
-                        unsafe { MOVE_BOARDS[P.value() as usize][square as usize] |= board_from_square(square) };
+                        unsafe { MOVE_BOARDS[piece_index][square as usize] |= board_from_square(step_square) };
                     }
                 }
             }
         },
         PieceType::King | PieceType::Knight => {
+            let index = P.value() as usize;
             for step in P.steps() {
                 for square in 0..64 {
                     if unsafe { can_step(square, *step) } {
-                        unsafe { MOVE_BOARDS[P.value() as usize][square as usize] |= board_from_square(square)}
+                        unsafe { MOVE_BOARDS[index][square as usize] |= board_from_square(square)}
                     }
                 }
             }
@@ -258,11 +261,11 @@ pub const fn is_valid_step(step: Step) -> bool {
     }
 }
 pub fn make_step(square: Square, step: Step) -> Square {
-    square + (step as Square) % 64
+    ((square as Step) + step) as Square
 }
 
 pub unsafe fn can_step(square: Square, step: Step) -> bool {
-    debug_assert!(is_valid_step(step));
     debug_assert!(is_valid_square(square));
+    debug_assert!(is_valid_step(step));
     unsafe { *CAN_STEP_TABLE.get_unchecked(get_step_id(step)).get_unchecked(square as usize) }
 }
