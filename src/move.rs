@@ -1,7 +1,7 @@
 use crate::bitboard::{square_from_string, Square};
 
 
-type Move = u16;
+pub type Move = u16;
 
 const NIL_MOVE:     Move = 0xffff;
 const PASSING_MOVE: Move = 0xdfff;

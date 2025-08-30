@@ -1,11 +1,14 @@
+use std::marker::ConstParamTy;
+
 pub type Bitboard = u64;
 pub type Square   = u8;
 pub type Board = [Bitboard; 12];
 
-#[derive(Clone, Copy)]
+#[repr(u8)]
+#[derive(Clone, Copy, ConstParamTy, PartialEq, Eq)]
 pub enum Color {
-    White,
-    Black,
+    White = WHITE_VAL,
+    Black = BLACK_VAL,
 }
 
 pub const EMPTY_BITBOARD:     Bitboard = 0;
@@ -51,18 +54,12 @@ impl Color {
 
     #[inline(always)]
     pub const fn value(self) -> u8 {
-        match self {
-            Color::White => {WHITE_VAL},
-            Color::Black => {BLACK_VAL},
-        }
+        self as u8
     }
 
     #[inline(always)]
     pub const fn board_offset(self) -> u8 {
-        match self {
-            Color::White => {WHITE_OFFSET},
-            Color::Black => {BLACK_OFFSET},
-        }
+        (self as u8) * 6
     }
 }
 

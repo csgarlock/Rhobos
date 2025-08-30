@@ -6,15 +6,16 @@ use crate::magic::{get_magic_index, magic_init, BISHOP_MAGICS, BISHOP_TABLE, ROO
 
 pub type Step = i8;
 
+#[repr(u8)]
 #[derive(ConstParamTy, PartialEq, Eq, Clone, Copy)]
 
 pub enum PieceType {
-    King,
-    Queen,
-    Rook,
-    Bishop,
-    Knight,
-    Pawn,
+    King = KING,
+    Queen = QUEEN,
+    Rook = ROOK,
+    Bishop = BISHOP,
+    Knight = KNIGHT,
+    Pawn = PAWN,
 }
 
 pub const RIGHT_STEP:      Step = 1;
@@ -71,20 +72,13 @@ pub static mut PAWN_ATTACK_BOARDS: [[Bitboard; 64]; 2] = [[EMPTY_BITBOARD; 64]; 
 
 impl PieceType {
     #[inline(always)]
-    pub const fn value(self) -> u8 {
-        match self {
-            PieceType::King => {KING},
-            PieceType::Queen => {QUEEN},
-            PieceType::Rook => {ROOK},
-            PieceType::Bishop => {BISHOP},
-            PieceType::Knight => {KNIGHT},
-            PieceType::Pawn => {PAWN},
-        }
+    pub const fn index(self) -> u8 {
+        self as u8
     }
 
     #[inline(always)]
     pub const fn colored_value(self, color: Color) -> u8 {
-        self.value() + color.board_offset()
+        self.index() + color.board_offset()
     }
 
     #[inline(always)]
@@ -140,7 +134,7 @@ fn step_info_init() {
 fn fill_moves_boards<const P: PieceType>() {
     match P {
         PieceType::Queen | PieceType::Rook | PieceType::Bishop => {
-            let piece_index = P.value() as usize;
+            let piece_index = P.index() as usize;
             for step in P.steps() {
                 for square in 0..64 {
                     let mut step_square = square;
@@ -152,7 +146,7 @@ fn fill_moves_boards<const P: PieceType>() {
             }
         },
         PieceType::King | PieceType::Knight => {
-            let index = P.value() as usize;
+            let index = P.index() as usize;
             for step in P.steps() {
                 for square in 0..64 {
                     if unsafe { can_step(square, *step) } {

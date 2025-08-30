@@ -7,10 +7,11 @@ use crate::{bitboard::{pretty_string_bitboard, pretty_string_square, square_from
 
 mod bitboard;
 mod histories;
-mod piece_info;
-mod state;
 mod magic;
 mod r#move;
+mod move_list;
+mod piece_info;
+mod state;
 
 fn main() {
     movement_info_init();
