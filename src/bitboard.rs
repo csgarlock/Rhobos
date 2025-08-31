@@ -47,8 +47,8 @@ impl Color {
     #[inline(always)]
     pub const fn other(self) -> Color {
         match self {
-            Color::White => {Color::Black},
-            Color::Black => {Color::White},
+            Color::White => Color::Black,
+            Color::Black => Color::White,
         }
     }
 
@@ -60,6 +60,14 @@ impl Color {
     #[inline(always)]
     pub const fn board_offset(self) -> u8 {
         (self as u8) * 6
+    }
+
+    #[inline(always)]
+    pub const fn castle_shift(self) -> u8 {
+        match self {
+            Color::White => 0,
+            Color::Black => 56,
+        }
     }
 }
 

@@ -1,6 +1,5 @@
 use crate::bitboard::{square_from_string, Square};
 
-
 pub type Move = u16;
 
 const NIL_MOVE:     Move = 0xffff;
@@ -10,15 +9,15 @@ const BIT_MASK_12:  u16 = 0xfff;
 const BIT_MASK_6:   u16 = 0x3f;
 const BIT_MASK_2:   u16 = 0x3;
 
-const NOT_SPECIAL_MOVE:        u8 = 0;
-const CASTLE_SPECIAL_MOVE:     u8 = 1;
-const PROMOTION_SPECIAL_MOVE:  u8 = 2;
-const EN_PASSANT_SPECIAL_MOVE: u8 = 3;
+pub const NOT_SPECIAL_MOVE:        u8 = 0;
+pub const CASTLE_SPECIAL_MOVE:     u8 = 1;
+pub const PROMOTION_SPECIAL_MOVE:  u8 = 2;
+pub const EN_PASSANT_SPECIAL_MOVE: u8 = 3;
 
-const QUEEN_PROMOTION:   u8 = 0;
-const ROOK_PROMOTION:    u8 = 1;
-const KNIGHT_PROMOTION:  u8 = 2;
-const BISHOP_PROMOTION:  u8 = 3;
+pub const QUEEN_PROMOTION:   u8 = 0;
+pub const ROOK_PROMOTION:    u8 = 1;
+pub const KNIGHT_PROMOTION:  u8 = 2;
+pub const BISHOP_PROMOTION:  u8 = 3;
 
 #[inline(always)]
 pub const fn move_origin_square(m: Move) -> Square {

@@ -13,50 +13,71 @@ pub struct MoveStack {
 pub struct MoveList {
     vec: Vec<Move>,
     current_get: usize,
-    current_store: usize,
     last: usize,
 }
 
 impl MoveStack {
+    #[inline(always)]
+    fn len(&self) -> usize {
+        self.vec.len()
+    }
 
     #[inline(always)]
-    pub fn get_list(&mut self) -> &mut MoveList {
-        let move_list = self.vec.get_mut(self.current);
-        match move_list {
-            (Some(list)) => return list,
-            (None) => {
-                self.vec.push(MoveList::new());
-                self.current += 1;
-                return &mut self.vec[self.current];
-            }
+    pub fn next(&mut self) {
+        self.current += 1;
+        if self.current >= self.len() {
+            self.vec.push(MoveList::new());
+        } else {
+            self.vec[self.current].reset();
         }
     }
 
-}
-
-impl Iterator for MoveList {
-    type Item = Move;
+    #[inline(always)]
+    pub fn previous(&mut self) {
+        self.current -= 1;
+    }
 
     #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_get >= self.last {
-            None
-        } else {
-            let result = self.vec[self.current_get];
-            self.current_get += 1;
-            Some(result)
-        }
+    pub fn get_current(&mut self) -> &mut MoveList {
+        &mut self.vec[self.current]
+    }
+
+    #[inline(always)]
+    pub fn push_current(&mut self, m: Move) {
+        self.get_current().push(m);
     }
 }
 
 impl MoveList {
+    #[inline(always)]
     fn new() -> MoveList {
-        MoveList { vec: vec![0; MAX_CAPTURE_MOVES + MAX_QUIET_MOVES], current_get: 0, current_store: 0, last: 0 }
+        MoveList { vec: vec![0; MAX_CAPTURE_MOVES + MAX_QUIET_MOVES], current_get: 0, last: 0 }
+    }
+
+    #[inline(always)]
+    fn reset(&mut self) {
+        self.current_get = 0;
+        self.last = 0;
     }
 
     #[inline(always)]
     pub fn push(&mut self, m: Move) {
-        self.vec[self.current_store] = m;
-        self.current_store += 1;
+        self.vec[self.last] = m;
+        self.last += 1;
+    }
+
+    #[inline(always)]
+    pub fn has_next(&self) -> bool {
+        self.current_get + 1 <= self.last
+    }
+
+    #[inline(always)]
+    pub fn next(&mut self) {
+        self.current_get += 1;
+    }
+
+    #[inline(always)]
+    pub fn current(&self) -> Move {
+        self.vec[self.current_get]
     }
 }
