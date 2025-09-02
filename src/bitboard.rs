@@ -1,5 +1,7 @@
 use std::marker::ConstParamTy;
 
+use crate::piece_info::Direction;
+
 pub type Bitboard = u64;
 pub type Square   = u8;
 pub type Board = [Bitboard; 12];
@@ -69,6 +71,62 @@ impl Color {
             Color::Black => 56,
         }
     }
+
+    #[inline(always)]
+    pub const fn color_rel_rank_mask<const R: u8>(self) -> Bitboard {
+        RANKS[(match self {
+            Color::White => R as usize,
+            Color::Black => 7 - R as usize,
+        })]
+    }
+
+    #[inline(always)]
+    pub const fn up(self) -> Direction {
+        match self {
+            Color::White => Direction::Up,
+            Color::Black => Direction::Down,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn down(self) -> Direction {
+        match self {
+            Color::White => Direction::Down,
+            Color::Black => Direction::Up,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn up_right(self) -> Direction {
+        match self {
+            Color::White => Direction::UpRight,
+            Color::Black => Direction::DownRight,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn up_left(self) -> Direction {
+        match self {
+            Color::White => Direction::UpLeft,
+            Color::Black => Direction::DownLeft,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn down_right(self) -> Direction {
+        match self {
+            Color::White => Direction::DownRight,
+            Color::Black => Direction::UpRight,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn down_left(self) -> Direction {
+        match self {
+            Color::White => Direction::DownLeft,
+            Color::Black => Direction::UpLeft,
+        }
+    }
 }
 
 #[inline(always)]
@@ -84,7 +142,7 @@ pub const fn get_lsb(b: Bitboard) -> Square {
 #[inline(always)]
 pub const fn pop_lsb(b: &mut Bitboard) -> Square {
     let lsb = get_lsb(*b);
-    *b &= *b - 1;
+    *b &= (*b - 1);
     lsb 
 }
 
@@ -94,23 +152,28 @@ pub const fn bit_count(b: Bitboard) -> u32 {
 }
 
 #[inline(always)]
+pub fn shift_bitboard<const D: Direction>(b: Bitboard) -> Bitboard {
+    debug_assert!(D != Direction::All);
+    match D {
+        Direction::Up => b << 8,
+        Direction::Down => b >> 8,
+        Direction::Right => (b & !FILE7) << 1,
+        Direction::UpRight => (b & !FILE7) << 9,
+        Direction::DownRight => (b & !FILE7) >> 7,
+        Direction::Left => (b & !FILE0) >> 1,
+        Direction::UpLeft => (b & !FILE0) << 7,
+        Direction::DownLeft => (b & !FILE0) >> 9,
+        _ => unreachable!(),
+    }
+}
+
+#[inline(always)]
 pub const fn board_from_square(s: Square) -> Bitboard {
     1 << (s as Bitboard)
 }
 
 pub const fn is_valid_square(s: Square) -> bool {
     s < 64
-}
-
-pub fn square_from_string(string: String) -> Square {
-    let rank = string[1..].parse::<Square>().unwrap() - 1;
-    let mut file: u8 = 0;
-    for (i, r) in FILE_MAP.iter().enumerate() {
-        if string.chars().nth(0).unwrap() == *r {
-            file = i as u8;
-        }
-    }
-    rank * 8 + file
 }
 
 pub fn pretty_string_bitboard(b: Bitboard) -> String {
@@ -129,5 +192,5 @@ pub fn pretty_string_square(s: Square) -> String {
     if s == NULL_SQUARE {
         return String::from("NS");
     }
-    return String::from(FILE_MAP[file(s) as usize]) + &format!("{}", rank(s));
+    return String::from(FILE_MAP[file(s) as usize]) + &format!("{}", rank(s)+1);
 }

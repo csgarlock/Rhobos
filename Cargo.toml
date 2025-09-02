@@ -1,5 +1,3 @@
-cargo-features = ["profile-rustflags"]
-
 [package]
 name = "rhobos"
 version = "0.1.0"
@@ -11,5 +9,4 @@ rand_xoshiro = "0.7.0"
 
 [profile.native]
 inherits = "release"
-rustflags = ["-C", "target-cpu=native"]
 codegen-units = 1

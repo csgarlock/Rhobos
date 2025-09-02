@@ -1,4 +1,4 @@
-use crate::bitboard::{square_from_string, Square};
+use crate::bitboard::{pretty_string_square, Square};
 
 pub type Move = u16;
 
@@ -49,6 +49,24 @@ pub const fn build_simple_move(origin: Square, destination: Square) -> Move {
     (origin as Move) | ((destination as Move) << 6)
 }
 
-pub fn simple_move_from_string(move_string: String) -> Move {
-    build_simple_move(square_from_string(move_string[0..2].to_string()), square_from_string(move_string[2..4].to_string()))
+pub fn pretty_string_move(m: Move) -> String {
+    if move_special_type(m) == CASTLE_SPECIAL_MOVE {
+        if move_destination_square(m) == 2 || move_destination_square(m) == 58 {
+            return "O-O-O".to_string();
+        } else {
+            return "O-O".to_string();
+        }
+    }
+    let promotion_string = if move_special_type(m) == PROMOTION_SPECIAL_MOVE {
+        (match move_special_type(m) {
+            QUEEN_PROMOTION => "=Q",
+            ROOK_PROMOTION => "=R",
+            BISHOP_PROMOTION => "=B",
+            KNIGHT_PROMOTION => "=N",
+            _ => unreachable!(),
+        }
+    )} else {""};
+    return pretty_string_square(move_origin_square(m)) +
+        &pretty_string_square(move_destination_square(m)) +
+        &promotion_string.to_string();
 }
