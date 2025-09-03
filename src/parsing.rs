@@ -26,7 +26,6 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
     // Board section
     let mut board = [EMPTY_BITBOARD; 12];
     let board_string: Vec<&str> = split_fen_string[0].split('/').collect();
-    println!("{:?}", board_string);
     for i in 0..8 {
         let rank= board_string[7-i];
         let mut column = 0;
@@ -117,7 +116,7 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
     if state.turn == Color::White {
         state.check = !state.is_square_safe::<{ Color::White }, false>(get_lsb(state.get_piece_board(Color::White, PieceType::King)), NULL_SQUARE);
     } else {
-        state.check = !state.is_square_safe::<{ Color::Black }, false>(get_lsb(state.get_piece_board(Color::White, PieceType::King)), NULL_SQUARE);
+        state.check = !state.is_square_safe::<{ Color::Black }, false>(get_lsb(state.get_piece_board(Color::Black, PieceType::King)), NULL_SQUARE);
         state.ply += 1;
     }
     Ok(state)

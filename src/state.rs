@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fmt::Display, marker::ConstParamTy};
+use std::{fmt::Display, marker::ConstParamTy, mem::transmute};
 use crate::{bitboard::{board_from_square, get_lsb, pop_lsb, pretty_string_bitboard, shift_bitboard, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History}, r#move::{build_move, build_simple_move, BISHOP_PROMOTION, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, move_list::MoveStack, piece_info::{make_step, move_bitboard, Direction, PieceType, Step, PAWN_ATTACK_BOARDS}};
 
 #[repr(u8)]
@@ -52,7 +52,7 @@ impl State {
         self.gen_piece_moves::<C, {PieceType::Rook}>(mask);
         self.gen_piece_moves::<C, {PieceType::Bishop}>(mask);
         self.gen_piece_moves::<C, {PieceType::Knight}>(mask);
-        self.gen_king_moves::<C>(mask);
+        self.gen_king_moves::<C, G>(mask);
         self.gen_pawn_moves::<C, G>(mask);
     }
 
@@ -71,7 +71,7 @@ impl State {
     }
 
     #[inline]
-    pub fn gen_king_moves<const C: Color>(&mut self, mask: Bitboard) {
+    pub fn gen_king_moves<const C: Color, const G: MoveGenType>(&mut self, mask: Bitboard) {
         let king_square = get_lsb(self.get_piece_board(C, PieceType::King));
         let mut move_board = move_bitboard::<{ PieceType::King}>(king_square, self.occupied) & mask;
         while move_board != EMPTY_BITBOARD {
@@ -80,7 +80,7 @@ impl State {
                 self.move_stack.push_current(build_simple_move(king_square, des_square));
             }
         }
-        if king_square == State::king_square::<C>(){
+        if G.should_gen_quiets() && king_square == State::king_square::<C>(){
             match self.castle_availability[C as usize] {
                 CastleAvailability::Both => {
                     self.gen_king_castle::<C, { CastleAvailability::King }>();
@@ -93,7 +93,7 @@ impl State {
         }
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn gen_king_castle<const C: Color, const A: CastleAvailability>(&mut self) {
         debug_assert!(A != CastleAvailability::Both && A != CastleAvailability::None);
         let color_shift = C.castle_shift();
@@ -170,7 +170,8 @@ impl State {
                     up_left_board = shift_bitboard::<{Direction::DownLeft}>(pawns_on_last) & enemy_board;
                 }
             }
-            up_board &= mask;
+            
+            up_board &= !self.side_occupied[C as usize];
 
             while up_board != EMPTY_BITBOARD {
                 let des_square = pop_lsb(&mut up_board);
@@ -236,7 +237,7 @@ impl State {
         }
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn is_square_safe<const C: Color, const U: bool>(&self, square: Square, un_set_square: Square) -> bool {
         let mut occupied = self.occupied;
         if U {
@@ -246,10 +247,10 @@ impl State {
             occupied &= !board_from_square(un_set_square);
         }
         let bishop_board = move_bitboard::<{ PieceType::Bishop }>(square, occupied);
-        if bishop_board & (self.get_piece_board(C.other(), PieceType::Queen) | self.get_piece_board(C, PieceType::Bishop)) != EMPTY_BITBOARD { return false }
+        if bishop_board & (self.get_piece_board(C.other(), PieceType::Queen) | self.get_piece_board(C.other(), PieceType::Bishop)) != EMPTY_BITBOARD { return false }
 
         let rook_board = move_bitboard::<{ PieceType::Rook }>(square, occupied);
-        if bishop_board & (self.get_piece_board(C.other(), PieceType::Queen) | self.get_piece_board(C, PieceType::Rook)) != EMPTY_BITBOARD { return false }
+        if rook_board & (self.get_piece_board(C.other(), PieceType::Queen) | self.get_piece_board(C.other(), PieceType::Rook)) != EMPTY_BITBOARD { return false }
 
         let knight_board = move_bitboard::<{ PieceType::Knight }>(square, occupied);
         if knight_board & self.get_piece_board(C.other(), PieceType::Knight) != EMPTY_BITBOARD { return false }
@@ -263,6 +264,13 @@ impl State {
     #[inline(always)]
     pub const fn get_piece_board(&self, color: Color, piece_type: PieceType) -> Bitboard {
         self.board[piece_type.colored_value(color) as usize]
+    }
+
+    #[inline(always)]
+    pub unsafe fn get_piece_board_raw(&self, color: u8, piece_type: u8) -> Bitboard {
+        debug_assert!(color < 2);
+        debug_assert!(piece_type < 6);
+        unsafe { *self.board.get_unchecked((color * 6 + piece_type) as usize) }
     }
 
     #[inline(always)]
@@ -331,7 +339,7 @@ impl Display for State {
 }
 
 impl CastleAvailability {
-    #[inline(never)]
+    #[inline(always)]
     pub const fn through_squares<const C: Color, const A: CastleAvailability>() -> Bitboard {
         (match A {
             CastleAvailability::King => 0x60,
@@ -340,7 +348,7 @@ impl CastleAvailability {
         }) >> C.castle_shift()
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub const fn rook_square<const C: Color, const A: CastleAvailability>() -> Square {
         (match A {
             CastleAvailability::King => 7,
@@ -349,7 +357,7 @@ impl CastleAvailability {
         }) + C.castle_shift()
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub const fn des_square<const C: Color, const A: CastleAvailability>() -> Square {
         (match A {
             CastleAvailability::King => 6,

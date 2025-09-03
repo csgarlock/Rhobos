@@ -58,7 +58,7 @@ pub fn pretty_string_move(m: Move) -> String {
         }
     }
     let promotion_string = if move_special_type(m) == PROMOTION_SPECIAL_MOVE {
-        (match move_special_type(m) {
+        (match move_promotion_type(m) {
             QUEEN_PROMOTION => "=Q",
             ROOK_PROMOTION => "=R",
             BISHOP_PROMOTION => "=B",

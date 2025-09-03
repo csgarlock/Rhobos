@@ -15,10 +15,8 @@ mod state;
 
 fn main() {
     movement_info_init();
-    let mut state = parse_fen_string("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3".to_string()).unwrap();
-    println!("{}", state);
-    println!("{}", pretty_string_square(state.en_passant_square));
-    state.gen_all_moves::<{Color::White}, {MoveGenType::All}>();
+    let mut state = parse_fen_string("1Rn5/1P2k3/8/8/8/3K4/8/8 w - - 0 1".to_string()).unwrap();
+    state.gen_all_moves::<{Color::White}, {MoveGenType::Capture}>();
     for (i, s) in state.move_stack.get_current().debug_string_moves().iter().enumerate() {
         println!("{}", s);
     }
