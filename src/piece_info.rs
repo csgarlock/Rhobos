@@ -1,14 +1,12 @@
 use std::{hint::unreachable_unchecked};
 use std::marker::ConstParamTy;
-use crate::bitboard::{board_from_square, file, is_valid_square, pretty_string_bitboard, rank, Bitboard, Color, Square, BLACK_OFFSET, BLACK_VAL, EMPTY_BITBOARD, WHITE_OFFSET, WHITE_VAL};
-use crate::bools_to_u64;
+use crate::bitboard::{board_from_square, file, is_valid_square, rank, Bitboard, Color, Square, BLACK_OFFSET, BLACK_VAL, EMPTY_BITBOARD, WHITE_OFFSET, WHITE_VAL};
 use crate::magic::{get_magic_index, magic_init, BISHOP_MAGICS, BISHOP_TABLE, ROOK_MAGICS, ROOK_TABLE};
 
 pub type Step = i8;
 
 #[repr(u8)]
 #[derive(ConstParamTy, PartialEq, Eq, Clone, Copy)]
-
 pub enum PieceType {
     King = KING,
     Queen = QUEEN,
@@ -17,6 +15,21 @@ pub enum PieceType {
     Knight = KNIGHT,
     Pawn = PAWN,
 }
+
+#[repr(i8)]
+#[derive(ConstParamTy, PartialEq, Eq, Clone, Copy)]
+pub enum Direction {
+    All = 0,
+    Right = RIGHT_STEP,
+    UpRight = UP_RIGHT_STEP,
+    Up = UP_STEP,
+    UpLeft = UP_LEFT_STEP,
+    Left = LEFT_STEP,
+    DownLeft = DOWN_LEFT_STEP,
+    Down = DOWN_STEP,
+    DownRight = DOWN_RIGHT_STEP,
+}
+
 
 pub const RIGHT_STEP:      Step = 1;
 pub const UP_RIGHT_STEP:   Step = 9;
@@ -150,7 +163,7 @@ fn fill_moves_boards<const P: PieceType>() {
             for step in P.steps() {
                 for square in 0..64 {
                     if unsafe { can_step(square, *step) } {
-                        unsafe { MOVE_BOARDS[index][square as usize] |= board_from_square(square)}
+                        unsafe { MOVE_BOARDS[index][square as usize] |= board_from_square(make_step(square, *step))}
                     }
                 }
             }

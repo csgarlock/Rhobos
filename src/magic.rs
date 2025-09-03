@@ -1,9 +1,9 @@
 use std::{ops::Range, u64};
 
-use rand::{rng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoroshiro128PlusPlus;
 
-use crate::{bitboard::{bit_count, board_from_square, file, pretty_string_bitboard, rank, Bitboard, Square, EMPTY_BITBOARD, FILE0, FILE7, FILES, RANK0, RANK7, RANKS}, piece_info::{can_step, make_step, PieceType, MOVE_BOARDS}};
+use crate::{bitboard::{bit_count, board_from_square, file, rank, Bitboard, Square, EMPTY_BITBOARD, FILE0, FILE7, FILES, RANK0, RANK7, RANKS}, piece_info::{can_step, make_step, PieceType, MOVE_BOARDS}};
 
 #[derive(Clone, Copy)]
 pub struct Magic {

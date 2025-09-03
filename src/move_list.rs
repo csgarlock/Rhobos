@@ -1,15 +1,15 @@
-use std::thread::current;
-
-use crate::r#move::Move;
+use crate::r#move::{pretty_string_move, Move};
 
 pub const MAX_QUIET_MOVES: usize = 50;
 pub const MAX_CAPTURE_MOVES: usize = 40;
 
+#[derive(Clone)]
 pub struct MoveStack {
     vec: Vec<MoveList>,
     current: usize,
 }
 
+#[derive(Clone)]
 pub struct MoveList {
     vec: Vec<Move>,
     current_get: usize,
@@ -17,6 +17,10 @@ pub struct MoveList {
 }
 
 impl MoveStack {
+    pub fn new(size: usize) -> MoveStack {
+        MoveStack { vec: vec![MoveList::new(); size], current: 0 }
+    }
+
     #[inline(always)]
     fn len(&self) -> usize {
         self.vec.len()
@@ -79,5 +83,13 @@ impl MoveList {
     #[inline(always)]
     pub fn current(&self) -> Move {
         self.vec[self.current_get]
+    }
+
+    pub fn debug_string_moves(&mut self) -> Vec<String> {
+        let mut result = Vec::new();
+        for i in 0..self.last {
+            result.push(pretty_string_move(self.vec[i]));
+        }
+        result
     }
 }
