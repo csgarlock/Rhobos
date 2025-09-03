@@ -12,8 +12,8 @@ pub enum MoveGenType {
 #[repr(u8)]
 #[derive(Clone, Copy, ConstParamTy, PartialEq, Eq)]
 pub enum CastleAvailability {
-    None  = 0b0,
-    King  = 0b1,
+    None  = 0b00,
+    King  = 0b01,
     Queen = 0b10,
     Both  = 0b11,
 }
