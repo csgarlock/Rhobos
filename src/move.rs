@@ -2,8 +2,8 @@ use crate::bitboard::{pretty_string_square, Square};
 
 pub type Move = u16;
 
-const NIL_MOVE:     Move = 0xffff;
-const PASSING_MOVE: Move = 0xdfff;
+pub const NULL_MOVE:    Move = 0xffff;
+pub const PASSING_MOVE: Move = 0xdfff;
 
 const BIT_MASK_12:  u16 = 0xfff;
 const BIT_MASK_6:   u16 = 0x3f;
@@ -19,6 +19,9 @@ pub const ROOK_PROMOTION:    u8 = 1;
 pub const KNIGHT_PROMOTION:  u8 = 2;
 pub const BISHOP_PROMOTION:  u8 = 3;
 
+pub const KING_CASTLE: u8 = 0b01;
+pub const QUEEN_CASTLE: u8 = 0b10;
+
 #[inline(always)]
 pub const fn move_origin_square(m: Move) -> Square {
     (m & BIT_MASK_6) as u8
@@ -30,7 +33,7 @@ pub const fn move_destination_square(m: Move) -> Square {
 }
 
 #[inline(always)]
-pub const fn move_promotion_type(m: Move) -> u8 {
+pub const fn move_special_info(m: Move) -> u8 {
     ((m >> 12) & BIT_MASK_2) as u8
 }
 
@@ -40,8 +43,8 @@ pub const fn move_special_type(m: Move) -> u8 {
 }
 
 #[inline(always)]
-pub const fn build_move(origin: Square, destination: Square, promotion: u8, special_type: u8) -> Move {
-    (origin as Move) | ((destination as Move) << 6) | ((promotion as Move) << 12) | ((special_type as Move) << 14)
+pub const fn build_move(origin: Square, destination: Square, special_info: u8, special_type: u8) -> Move {
+    (origin as Move) | ((destination as Move) << 6) | ((special_info as Move) << 12) | ((special_type as Move) << 14)
 }
 
 #[inline(always)]
@@ -58,7 +61,7 @@ pub fn pretty_string_move(m: Move) -> String {
         }
     }
     let promotion_string = if move_special_type(m) == PROMOTION_SPECIAL_MOVE {
-        (match move_promotion_type(m) {
+        (match move_special_info(m) {
             QUEEN_PROMOTION => "=Q",
             ROOK_PROMOTION => "=R",
             BISHOP_PROMOTION => "=B",

@@ -1,4 +1,4 @@
-use crate::{bitboard::{Square, NULL_SQUARE}, piece_info::{PieceType, NO_PIECE}};
+use crate::{bitboard::{Square, NULL_SQUARE}, piece_info::{PieceType, KING, NO_PIECE}};
 
 pub const NO_LAST_PLY: u16 = 65530;
 
@@ -12,15 +12,15 @@ pub trait HistoryEntry : Copy {
 
 #[derive(Clone, Copy)]
 pub struct CaptureEntry {
-    piece: u8,
+    piece: PieceType,
     ply: u16,
 }
 
 impl HistoryEntry for CaptureEntry {
-    type Value = u8;
+    type Value = PieceType;
     fn ply(self) -> u16 { self.ply }
     fn value(self) -> Self::Value { self.piece }
-    fn empty() -> Self { Self { piece:NO_PIECE, ply: 0 } }
+    fn empty() -> Self { Self { piece: PieceType::King, ply: 0 } }
     fn new(val: Self::Value, ply: u16) -> Self { Self { piece: val, ply: ply } }
 }
 

@@ -1,7 +1,8 @@
-use crate::r#move::{pretty_string_move, Move};
+use crate::r#move::{pretty_string_move, Move, NULL_MOVE};
 
 pub const MAX_QUIET_MOVES: usize = 50;
 pub const MAX_CAPTURE_MOVES: usize = 40;
+pub const NUM_KILLERS: usize = 2;
 
 #[derive(Clone)]
 pub struct MoveStack {
@@ -14,6 +15,20 @@ pub struct MoveList {
     vec: Vec<Move>,
     current_get: usize,
     last: usize,
+    move_fetch_stage: MoveFetchStage,
+    tt_move: Move,
+    killer_moves: [Move; NUM_KILLERS],
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+enum MoveFetchStage {
+    Start,
+    TTMove,
+    CaptureMoves,
+    KillerMoves,
+    QuietMoves,
+    Done,
 }
 
 impl MoveStack {
@@ -55,7 +70,14 @@ impl MoveStack {
 impl MoveList {
     #[inline(always)]
     fn new() -> MoveList {
-        MoveList { vec: vec![0; MAX_CAPTURE_MOVES + MAX_QUIET_MOVES], current_get: 0, last: 0 }
+        MoveList {
+            vec: vec![0; MAX_CAPTURE_MOVES + MAX_QUIET_MOVES],
+            current_get: 0,
+            last: 0,
+            move_fetch_stage: MoveFetchStage::Start,
+            tt_move: NULL_MOVE,
+            killer_moves: [NULL_MOVE; NUM_KILLERS],
+        }
     }
 
     #[inline(always)]
@@ -85,11 +107,31 @@ impl MoveList {
         self.vec[self.current_get]
     }
 
+    #[inline(always)]
+    pub fn add_killer(&mut self, m: Move) {
+        self.killer_moves[NUM_KILLERS - 1] = m;
+        self.killer_moves.rotate_right(1);
+    } 
+
     pub fn debug_string_moves(&mut self) -> Vec<String> {
         let mut result = Vec::new();
         for i in 0..self.last {
             result.push(pretty_string_move(self.vec[i]));
         }
         result
+    }
+
+}
+
+impl MoveFetchStage {
+    fn next(self) -> MoveFetchStage {
+        match self {
+            MoveFetchStage::Start => MoveFetchStage::TTMove,
+            MoveFetchStage::TTMove => MoveFetchStage::CaptureMoves,
+            MoveFetchStage::CaptureMoves => MoveFetchStage::KillerMoves,
+            MoveFetchStage::KillerMoves => MoveFetchStage::QuietMoves,
+            MoveFetchStage::QuietMoves => MoveFetchStage::Done,
+            MoveFetchStage::Done => MoveFetchStage::Done,
+        }
     }
 }

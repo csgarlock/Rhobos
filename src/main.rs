@@ -2,11 +2,12 @@
 #![allow(static_mut_refs)]
 #![allow(unused)]
 
-use crate::{bitboard::{pop_lsb, pretty_string_bitboard, pretty_string_square, Bitboard, Color, EMPTY_BITBOARD}, parsing::{parse_fen_string, starting_fen}, piece_info::{movement_info_init, KNIGHT, MOVE_BOARDS}, state::MoveGenType};
+use crate::{bitboard::{pop_lsb, pretty_string_bitboard, pretty_string_square, Bitboard, Color, EMPTY_BITBOARD}, move_gen::MoveGenType, parsing::{parse_fen_string, starting_fen}, piece_info::{movement_info_init, KNIGHT, MOVE_BOARDS}};
 
 mod bitboard;
 mod histories;
 mod magic;
+mod move_gen;
 mod move_list;
 mod r#move;
 mod parsing;
