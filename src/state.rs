@@ -1,6 +1,6 @@
 use core::fmt;
-use std::{fmt::Display, marker::ConstParamTy, mem::transmute};
-use crate::{bitboard::{board_from_square, get_lsb, is_valid_square, pop_lsb, pretty_string_bitboard, shift_bitboard, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History}, r#move::{build_move, build_simple_move, move_destination_square, move_origin_square, move_special_info, move_special_type, Move, BISHOP_PROMOTION, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, KNIGHT_PROMOTION, NULL_MOVE, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, move_list::MoveStack, piece_info::{make_step, move_bitboard, Direction, PieceType, Step, PAWN_ATTACK_BOARDS}};
+use std::{fmt::Display, hint::unreachable_unchecked, marker::ConstParamTy, mem::transmute};
+use crate::{bitboard::{board_from_square, get_lsb, is_valid_square, pop_lsb, pretty_string_bitboard, rank, shift_bitboard, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{build_move, build_simple_move, move_destination_square, move_origin_square, move_special_info, move_special_type, Move, BISHOP_PROMOTION, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, KNIGHT_PROMOTION, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, move_gen::MoveGenType, move_list::MoveStack, piece_info::{make_step, move_bitboard, Direction, PieceType, Step, PAWN_ATTACK_BOARDS}};
 
 #[repr(u8)]
 #[derive(Clone, Copy, ConstParamTy, PartialEq, Eq)]
@@ -18,7 +18,6 @@ pub struct State {
     pub not_occupied:        Bitboard,
     pub turn:                Color,
     pub ply:                 u16,
-    pub can_en_passant:      bool,
     pub en_passant_square:   Square,
     pub check:               bool,
     pub hashcode:            u64,
@@ -30,15 +29,24 @@ pub struct State {
     pub castle_history:      History<CastleHistoryEntry>,
     pub fifty_move_history:  History<FiftyMoveHistory>,
     pub hash_history:        History<u64>,
+    pub check_history:       History<bool>,
 }
 
 impl State {
 
     pub fn make_move<const C: Color>(&mut self, m: Move) {
         debug_assert_ne!(m, NULL_MOVE);
+
         let src_square = move_origin_square(m);
         let des_square = move_destination_square(m);
         debug_assert!(src_square < 64 && des_square < 64);
+        
+        self.en_passant_history.push(self.en_passant_square);
+        self.castle_history.push(self.castle_availability[C as usize]);
+        self.fifty_move_history.push(self.half_move_clock);
+        self.hash_history.push(self.hashcode);
+        self.check_history.push(self.check);
+        let mut capture_entry = CaptureEntry::empty();
 
         let src_piece_type = self.force_get_colored_piece_at_square::<C>(src_square);
         self.clear_square(src_square, C, src_piece_type);
@@ -51,27 +59,53 @@ impl State {
 
         let is_capture = match des_piece_type_option {
             Some(des_piece_type) => {
+                capture_entry = CaptureEntry{ piece: Some(des_piece_type), bitboard: self.get_piece_board(C.other(), des_piece_type) };
                 self.clear_square(des_square, C.other(), des_piece_type);
-                self.capture_history.push(des_piece_type, self.ply);
-                self.fifty_move_history.push(self.half_move_clock, self.ply);
                 self.half_move_clock = 0;
                 true
             },
             None => false
         };
         match move_special_type(m) {
+            NOT_SPECIAL_MOVE => {
+                match src_piece_type {
+                    PieceType::King => {
+                        if src_square == State::king_square::<C>() {
+                            match self.castle_availability[C as usize] {
+                                CastleAvailability::Both => self.toggle_castle_availability::<C, {CastleAvailability::Both}>(),
+                                CastleAvailability::King => self.toggle_castle_availability::<C, {CastleAvailability::King}>(),
+                                CastleAvailability::Queen => self.toggle_castle_availability::<C, {CastleAvailability::Queen}>(),
+                                CastleAvailability::None => (),
+                            }
+                        }
+                    },
+                    PieceType::Pawn => {
+                        let rank_diff = rank(src_square) as i8 - rank(des_square) as i8;
+                        if rank_diff == 2 || rank_diff == -2 {
+                            self.en_passant_square = make_step(src_square, C.up() as i8);
+                            self.set_en_passant(self.en_passant_square);
+                        }
+                        self.half_move_clock = 0;
+                    }
+                    _ => (),
+                }
+            }
             CASTLE_SPECIAL_MOVE => {
                 debug_assert!(move_special_info(m) == 1 || move_special_info(m) == 2);
                 let castle_type: CastleAvailability = unsafe { transmute(move_special_info(m)) };
-                // let rook_square = match castle_type {
-                //     CastleAvailability::King => {
-                //         self.castle_availability[C as usize].
-                //     },
-                //     CastleAvailability::Queen => {
-
-                //     },
-                //     _ => unreachable!(),
-                // }
+                let (old_rook_square, new_rook_square) = match castle_type {
+                    CastleAvailability::King => { 
+                        unsafe { self.toggle_castle_availability::<C, {CastleAvailability::King}>() };
+                        (7 + C.castle_shift(), 5 + C.castle_shift())
+                    },
+                    CastleAvailability::Queen => {
+                        self.toggle_castle_availability::<C, {CastleAvailability::Queen}>();
+                        (C.castle_shift(), 3 + C.castle_shift())
+                    },
+                    _ => { debug_assert!(false); unsafe { unreachable_unchecked() }; },
+                };
+                self.clear_square(old_rook_square, C, PieceType::Rook);
+                self.set_square(new_rook_square, C, PieceType::Rook);
             },
             PROMOTION_SPECIAL_MOVE => {
                 let promotion_type = move_special_info(m);
@@ -82,15 +116,85 @@ impl State {
             EN_PASSANT_SPECIAL_MOVE => {
                 let down_step = C.down() as Step;
                 let en_passant_square = make_step(des_square, down_step);
+                capture_entry = CaptureEntry { piece: Some(PieceType::Pawn), bitboard: self.get_piece_board(C.other(), PieceType::Pawn) };
                 self.clear_square(en_passant_square, C.other(), PieceType::Pawn);
-                self.capture_history.push(PieceType::Pawn, self.ply);
             }
-            _ => (),
+            _ => { debug_assert!(false); unsafe { unreachable_unchecked() }; },
+        }
+        self.capture_history.push((capture_entry.piece, capture_entry.bitboard));
+        self.update_occupied();
+        self.turn = C.other();
+        self.move_stack.next();
+        match C {
+            Color::White => {
+                self.check = !self.is_square_safe::<{Color::Black}, false>(
+                    get_lsb(self.get_piece_board(Color::Black, PieceType::King)),
+                    NULL_SQUARE
+                );
+            }
+            Color::Black => {
+                self.check = !self.is_square_safe::<{Color::White}, false>(
+                    get_lsb(self.get_piece_board(Color::White, PieceType::King)),
+                    NULL_SQUARE
+                );
+            }
         }
     }
 
-    pub fn unmake_move<const C: Color>(m: Move) {
+    // C is the color that originally made the move
+    pub fn unmake_move<const C: Color>(&mut self, m: Move) {
+        debug_assert_ne!(m, NULL_MOVE);
+        let src_square = move_origin_square(m);
+        let des_square = move_destination_square(m);
+        debug_assert!(src_square < 64 && des_square < 64);
 
+        self.en_passant_square = self.en_passant_history.pop().value();
+        self.castle_availability[C as usize] = self.castle_history.pop().value();
+        self.half_move_clock = self.fifty_move_history.pop().value();
+        self.hashcode = self.hash_history.pop().value();
+        self.check = self.check_history.pop().value();
+        
+        let src_piece_type = self.force_get_colored_piece_at_square::<C>(des_square);
+        self.clear_square(des_square, C, src_piece_type);
+        self.set_square(src_square, C, src_piece_type);
+        
+        let capture_entry = self.capture_history.pop().value();
+        match capture_entry.0 {
+            Some(piece_type) => {
+                self.set_piece_board(capture_entry.1, C.other(), piece_type);
+            }
+            None => (),
+        }
+
+        match move_special_type(m) {
+            CASTLE_SPECIAL_MOVE => {
+                debug_assert!(move_special_info(m) == 1 || move_special_info(m) == 2);
+                let castle_type: CastleAvailability = unsafe { transmute(move_special_info(m)) };
+                let (old_rook_square, new_rook_square) = match castle_type {
+                    CastleAvailability::King => { 
+                        self.toggle_castle_availability::<C, {CastleAvailability::King}>();
+                        (7 + C.castle_shift(), 5 + C.castle_shift())
+                    },
+                    CastleAvailability::Queen => {
+                        self.toggle_castle_availability::<C, {CastleAvailability::Queen}>();
+                        (C.castle_shift(), 3 + C.castle_shift())
+                    },
+                    _ => unreachable!(),
+                };
+                self.clear_square(new_rook_square, C, PieceType::Rook);
+                self.set_square(old_rook_square, C, PieceType::Rook);
+            },
+            PROMOTION_SPECIAL_MOVE => {
+                let promotion_type = move_special_info(m);
+                debug_assert!(promotion_type < 4);
+                self.set_square(des_square, C, PieceType::Pawn);
+                unsafe { self.clear_square_raw(des_square, C as u8, promotion_type + 1) };
+            },
+            _ => (),
+        }
+        self.turn = C;
+        self.update_occupied();
+        self.move_stack.previous();
     }
     
     #[inline(always)]
@@ -183,6 +287,22 @@ impl State {
     }
 
     #[inline(always)]
+    pub fn toggle_castle_availability<const C: Color, const A: CastleAvailability>(&mut self) {
+        let bit_mask = CastleAvailability::bit_mask::<A>();
+        self.castle_availability[C as usize] = unsafe { transmute(self.castle_availability[C as usize] as u8 ^ bit_mask) };
+    }
+
+    #[inline(always)]
+    pub fn set_en_passant(&mut self, square: Square) {
+        self.en_passant_square = square;
+    }
+
+    #[inline(always)]
+    pub fn clear_en_passant(&mut self) {
+        self.en_passant_square = NULL_SQUARE;
+    }
+
+    #[inline(always)]
     pub fn get_colored_piece_at_square<const C: Color>(&self, square: Square) -> Option<PieceType> {
         let piece_board = board_from_square(square);
         if self.get_piece_board(C, PieceType::King) & piece_board != EMPTY_BITBOARD { Some(PieceType::King) }
@@ -221,14 +341,28 @@ impl State {
         let color_shift = C.castle_shift();
         match A {
             CastleAvailability::King => {
-                self.is_square_safe::<C, false>(4 >> color_shift, NULL_SQUARE) &&
-                self.is_square_safe::<C, false>(5 >> color_shift, NULL_SQUARE)
+                self.is_square_safe::<C, false>(4 + color_shift, NULL_SQUARE) &&
+                self.is_square_safe::<C, false>(5 + color_shift, NULL_SQUARE)
             },
             CastleAvailability::Queen => {
-                self.is_square_safe::<C, false>(2 >> color_shift, NULL_SQUARE) &&
-                self.is_square_safe::<C, false>(3 >> color_shift, NULL_SQUARE)
+                self.is_square_safe::<C, false>(2 + color_shift, NULL_SQUARE) &&
+                self.is_square_safe::<C, false>(3 + color_shift, NULL_SQUARE)
             },
             _ => false,
+        }
+    }
+
+    pub fn debug_quick_make_move(&mut self, m: Move) {
+        match self.turn {
+            Color::White => self.make_move::<{Color::White}>(m),
+            Color::Black => self.make_move::<{Color::Black}>(m),
+        }
+    }
+
+    pub fn debug_quick_unmake_move(&mut self, m: Move) {
+        match self.turn {
+            Color::White => self.unmake_move::<{Color::White}>(m),
+            Color::Black => self.unmake_move::<{Color::Black}>(m),
         }
     }
 }

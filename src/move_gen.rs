@@ -75,18 +75,10 @@ impl State {
             // Check if all squares in between king and rook are not attacked by another piece
             self.are_castle_through_squares_safe::<C, A>()
         ) {
-            let castle_type = match C {
-                Color::White => 0,
-                Color::Black => 2,
-            } + match A {
-                CastleAvailability::King => 0,
-                CastleAvailability::Queen => 1,
-                _ => unreachable!(),
-            };
             self.move_stack.push_current(build_move(
                 king_square,
                 CastleAvailability::des_square::<C, A>(),
-                castle_type,
+                A as u8,
                 CASTLE_SPECIAL_MOVE)
             );
         }
@@ -192,7 +184,7 @@ impl State {
                 self.move_stack.push_current(build_simple_move(pawn_square, des_square));
             }
 
-            if self.can_en_passant {
+            if self.en_passant_square != NULL_SQUARE {
                 let mut en_passant_board = unsafe { PAWN_ATTACK_BOARDS[C.other().value() as usize][self.en_passant_square as usize] } & pawns_not_on_last;
                 while en_passant_board != EMPTY_BITBOARD {
                     let src_square = pop_lsb(&mut en_passant_board);
@@ -214,6 +206,12 @@ impl State {
         }
     }
 
+    pub fn debug_quick_gen_moves(&mut self) {
+        match self.turn {
+            Color::White => self.gen_all_moves::<{Color::White}, {MoveGenType::All}>(),
+            Color::Black => self.gen_all_moves::<{Color::Black}, {MoveGenType::All}>(),
+        }
+    }
 }
 
 impl CastleAvailability {
@@ -223,7 +221,7 @@ impl CastleAvailability {
             CastleAvailability::King => 0x60,
             CastleAvailability::Queen => 0xE,
             _ => EMPTY_BITBOARD,
-        }) >> C.castle_shift()
+        }) << C.castle_shift()
     }
 
     #[inline(always)]
@@ -243,7 +241,16 @@ impl CastleAvailability {
             _ => NULL_SQUARE,
         }) + C.castle_shift()
     }
-    
+
+    #[inline(always)]
+    pub fn bit_mask<const A: CastleAvailability>() -> u8 {
+        match A {
+            CastleAvailability::Both => 0b11,
+            CastleAvailability::King => 0b01,
+            CastleAvailability::Queen => 0b10,
+            CastleAvailability::None => 0b00,
+        }
+    }
 }
 
 impl MoveGenType {

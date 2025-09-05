@@ -1,35 +1,14 @@
-#![feature(adt_const_params)]
-#![allow(static_mut_refs)]
-#![allow(unused)]
-
-pub mod bitboard;
-pub mod histories;
-pub mod magic;
-pub mod move_gen;
-pub mod move_list;
-pub mod r#move;
-pub mod parsing;
-pub mod piece_info;
-pub mod state;
-
-pub mod tests;
-
 use std::io::stdin;
 
-use crate::{bitboard::{pop_lsb, pretty_string_bitboard, pretty_string_square, Bitboard, Color, EMPTY_BITBOARD}, r#move::pretty_string_move, move_gen::MoveGenType, parsing::{parse_fen_string, simple_move_from_string, starting_fen}, piece_info::{movement_info_init, KNIGHT, MOVE_BOARDS}, state::State};
-
-fn main() {
-    movement_info_init();
-    let mut state = starting_fen();
-    perft_checker(&mut state, 2);
-}
-
+use crate::{bitboard::Color, move_gen::MoveGenType, parsing::parse_fen_string, piece_info::movement_info_init, state::State, tests::init};
 
 const PERFT_TEST_CASES: [(&str, i64, i64); 1] = [
-    ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 2, 400),
+    ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 3, 8_902),
 ];
 
+#[test]
 fn perft_test() {
+    init();
     for (i, case) in PERFT_TEST_CASES.iter().enumerate() {
         let mut move_count = 0;
         let mut state = parse_fen_string(case.0.to_string()).unwrap();

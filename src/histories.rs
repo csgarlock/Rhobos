@@ -1,81 +1,82 @@
-use crate::{bitboard::{Square, NULL_SQUARE}, piece_info::{PieceType, KING, NO_PIECE}};
+use crate::{bitboard::{Bitboard, Square, EMPTY_BITBOARD, NULL_SQUARE}, piece_info::{PieceType, KING, NO_PIECE}, state::CastleAvailability};
 
 pub const NO_LAST_PLY: u16 = 65530;
 
 pub trait HistoryEntry : Copy {
     type Value: Sized + Copy;
-    fn ply(self) -> u16;
+
     fn value(self) -> Self::Value;
     fn empty() -> Self;
-    fn new(val: Self::Value, ply: u16) -> Self;
+    fn new(val: Self::Value) -> Self;
 }
 
 #[derive(Clone, Copy)]
 pub struct CaptureEntry {
-    piece: PieceType,
-    ply: u16,
+    pub piece: Option<PieceType>,
+    pub bitboard: Bitboard,
 }
 
 impl HistoryEntry for CaptureEntry {
-    type Value = PieceType;
-    fn ply(self) -> u16 { self.ply }
-    fn value(self) -> Self::Value { self.piece }
-    fn empty() -> Self { Self { piece: PieceType::King, ply: 0 } }
-    fn new(val: Self::Value, ply: u16) -> Self { Self { piece: val, ply: ply } }
+    type Value = (Option<PieceType>, Bitboard);
+
+    fn value(self) -> Self::Value { (self.piece, self.bitboard) }
+    fn empty() -> Self { Self { piece: None, bitboard: EMPTY_BITBOARD } }
+    fn new(val: Self::Value) -> Self { Self { piece: val.0, bitboard: val.1 } }
 }
 
 #[derive(Clone, Copy)]
 pub struct EnPassantEntry {
     square: Square,
-    ply: u16,
 }
 
 impl HistoryEntry for EnPassantEntry {
     type Value = Square;
 
-    fn ply(self) -> u16 { self.ply }
     fn value(self) -> Self::Value { self.square }
-    fn empty() -> Self { Self { square: NULL_SQUARE, ply: 0 } }
-    fn new(val: Self::Value, ply: u16) -> Self { Self { square: val, ply: ply } }
+    fn empty() -> Self { Self { square: NULL_SQUARE } }
+    fn new(val: Self::Value) -> Self { Self { square: val } }
 }
 
 #[derive(Clone, Copy)]
 pub struct CastleHistoryEntry {
-    castle: u8,
-    ply: u16,
+    castle: CastleAvailability,
 }
 
 impl HistoryEntry for CastleHistoryEntry {
-    type Value = u8;
+    type Value = CastleAvailability;
 
-    fn ply(self) -> u16 { self.ply }
     fn value(self) -> Self::Value { self.castle }
-    fn empty() -> Self { Self { castle: 255, ply: 0 }}
-    fn new(val: Self::Value, ply: u16) -> Self { Self { castle: val, ply: ply } }
+    fn empty() -> Self { Self { castle: CastleAvailability::None }}
+    fn new(val: Self::Value ) -> Self { Self { castle: val } }
 }
 
 #[derive(Clone, Copy)]
 pub struct FiftyMoveHistory {
     last_count: u8,
-    ply: u16,
 }
 
 impl HistoryEntry for FiftyMoveHistory {
     type Value = u8;
 
-    fn ply(self) -> u16 { self.ply }
     fn value(self) -> Self::Value { self.last_count }
-    fn empty() -> Self { Self { last_count: 255, ply: 0 }}
-    fn new(val: Self::Value, ply: u16) -> Self { Self { last_count: val, ply: ply } }
+    fn empty() -> Self { Self { last_count: 255 }}
+    fn new(val: Self::Value) -> Self { Self { last_count: val } }
 }
 
 impl HistoryEntry for u64 {
     type Value = u64;
 
-    fn ply(self) -> u16 { unimplemented!() }
     fn value(self) -> Self::Value { self }
     fn empty() -> Self { 0 }
-    fn new(val: Self::Value, ply: u16) -> Self { val }
+    fn new(val: Self::Value ) -> Self { val }
+}
+
+impl HistoryEntry for bool {
+    type Value = bool;
+
+    fn value(self) -> Self::Value { self }
+    fn empty() -> Self { false }
+    fn new(val: Self::Value) -> Self { val }
 }
 
 pub struct History<T: HistoryEntry> {
@@ -83,18 +84,11 @@ pub struct History<T: HistoryEntry> {
     current_index: usize,
 }
 
+
 impl<T: HistoryEntry> History<T>  {
     pub fn new(starting_length: usize) -> History<T> {
         let vector = vec![T::empty(); starting_length as usize];
         History { vector: vector, current_index: 0 }
-    }
-
-    pub fn most_recent_ply(&self) -> u16 {
-        if self.current_index == 0 {
-            NO_LAST_PLY
-        } else {
-            self.vector[self.current_index - 1].ply()
-        }
     }
 
     pub fn pop(&mut self) -> T {
@@ -106,11 +100,11 @@ impl<T: HistoryEntry> History<T>  {
         self.vector[self.current_index-1]
     }
 
-    pub fn push(&mut self, value: T::Value, ply: u16) {
+    pub fn push(&mut self, value: T::Value) {
         if self.current_index >= self.vector.len() {
-            self.vector.push(T::new(value, ply));
+            self.vector.push(T::new(value));
         } else {
-            self.vector[self.current_index] = T::new(value, ply);
+            self.vector[self.current_index] = T::new(value);
         }
         self.current_index += 1;
     } 

@@ -100,7 +100,6 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
         not_occupied: !(side_occupied[0] | side_occupied[1]),
         turn: if split_fen_string[1] == "w" {Color::White} else {Color::Black},
         ply: ply,
-        can_en_passant: if en_passant_square == NULL_SQUARE {false} else {true},
         en_passant_square: en_passant_square,
         check: false,
         hashcode: 0,
@@ -112,6 +111,7 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
         castle_history: History::new(5),
         fifty_move_history: History::new(5),
         hash_history: History::new(5),
+        check_history: History::new(5),
     };
     if state.turn == Color::White {
         state.check = !state.is_square_safe::<{ Color::White }, false>(get_lsb(state.get_piece_board(Color::White, PieceType::King)), NULL_SQUARE);

@@ -2,7 +2,7 @@ use crate::bitboard::{pretty_string_square, Square};
 
 pub type Move = u16;
 
-pub const NULL_MOVE:    Move = 0xffff;
+pub const NULL_MOVE:    Move = 0x0000;
 pub const PASSING_MOVE: Move = 0xdfff;
 
 const BIT_MASK_12:  u16 = 0xfff;

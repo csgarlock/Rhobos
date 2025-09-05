@@ -12,17 +12,17 @@ pub struct MoveStack {
 
 #[derive(Clone)]
 pub struct MoveList {
-    vec: Vec<Move>,
-    current_get: usize,
-    last: usize,
-    move_fetch_stage: MoveFetchStage,
-    tt_move: Move,
-    killer_moves: [Move; NUM_KILLERS],
+    pub vec: Vec<Move>,
+    pub current_get: usize,
+    pub last: usize,
+    pub move_fetch_stage: MoveFetchStage,
+    pub tt_move: Move,
+    pub killer_moves: [Move; NUM_KILLERS],
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-enum MoveFetchStage {
+pub enum MoveFetchStage {
     Start,
     TTMove,
     CaptureMoves,
@@ -54,6 +54,7 @@ impl MoveStack {
     #[inline(always)]
     pub fn previous(&mut self) {
         self.current -= 1;
+        self.get_current().reset();
     }
 
     #[inline(always)]
@@ -112,6 +113,11 @@ impl MoveList {
         self.killer_moves[NUM_KILLERS - 1] = m;
         self.killer_moves.rotate_right(1);
     } 
+
+    #[inline(always)]
+    pub fn total_moves(&self) -> usize {
+        self.last + 1
+    }
 
     pub fn debug_string_moves(&mut self) -> Vec<String> {
         let mut result = Vec::new();
