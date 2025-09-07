@@ -66,14 +66,12 @@ impl State {
         debug_assert!(A != CastleAvailability::Both && A != CastleAvailability::None);
         let color_shift = C.castle_shift();
         let king_square = 4 + color_shift;
-        if (
-            // Check if rook is present on correct square
-            board_from_square(CastleAvailability::rook_square::<C, A>()) & self.get_piece_board(C, PieceType::Rook) != EMPTY_BITBOARD &&
+        if board_from_square(CastleAvailability::rook_square::<C, A>()) & self.get_piece_board(C, PieceType::Rook) != EMPTY_BITBOARD &&
             // Check if squares in between king and rook are free
             CastleAvailability::through_squares::<C, A>() & self.occupied == EMPTY_BITBOARD &&
             // Check if all squares in between king and rook are not attacked by another piece
             self.are_castle_through_squares_safe::<C, A>()
-        ) {
+        {
             self.move_stack.push_current(build_move(
                 king_square,
                 CastleAvailability::des_square::<C, A>(),
@@ -92,7 +90,6 @@ impl State {
         let pawns_on_last = self.get_piece_board(C, PieceType::Pawn) & last_rank_mask;
         let pawns_not_on_last = self.get_piece_board(C, PieceType::Pawn) & !last_rank_mask;
 
-        let up = C.up();
         let down = C.down();
         let down_right = C.down_right();
         let down_left = C.down_left();

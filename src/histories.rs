@@ -1,4 +1,4 @@
-use crate::{bitboard::{Bitboard, Square, EMPTY_BITBOARD, NULL_SQUARE}, piece_info::{PieceType, KING, NO_PIECE}, state::CastleAvailability};
+use crate::{bitboard::{Bitboard, Square, EMPTY_BITBOARD, NULL_SQUARE}, piece_info::PieceType, state::CastleAvailability};
 
 pub const NO_LAST_PLY: u16 = 65530;
 

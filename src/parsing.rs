@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{bitboard::{get_lsb, Bitboard, Board, Color, Square, EMPTY_BITBOARD, FILE_MAP, NULL_SQUARE}, histories::History, r#move::{build_simple_move, Move}, move_list::MoveStack, piece_info::PieceType, state::{CastleAvailability, State}};
+use crate::{bitboard::{get_lsb, Color, Square, EMPTY_BITBOARD, FILE_MAP, NULL_SQUARE}, histories::History, r#move::{build_simple_move, Move}, move_list::MoveStack, piece_info::PieceType, state::{CastleAvailability, State}};
 
 pub fn square_from_string(string: String) -> Square {
     let rank = string[1..].parse::<Square>().unwrap() - 1;
@@ -88,7 +88,7 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
     }
 
     // Ply Section
-    let mut ply;
+    let ply;
     match split_fen_string[5].parse::<u16>() {
         Ok(val) => ply = val,
         Err(err) => return Err(err.to_string()),
@@ -119,6 +119,7 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
         state.check = !state.is_square_safe::<{ Color::Black }, false>(get_lsb(state.get_piece_board(Color::Black, PieceType::King)), NULL_SQUARE);
         state.ply += 1;
     }
+    state.hashcode = state.get_hash();
     Ok(state)
 }
 

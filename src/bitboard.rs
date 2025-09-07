@@ -74,10 +74,10 @@ impl Color {
 
     #[inline(always)]
     pub const fn color_rel_rank_mask<const R: u8>(self) -> Bitboard {
-        RANKS[(match self {
+        RANKS[match self {
             Color::White => R as usize,
             Color::Black => 7 - R as usize,
-        })]
+        }]
     }
 
     #[inline(always)]
@@ -142,7 +142,7 @@ pub const fn get_lsb(b: Bitboard) -> Square {
 #[inline(always)]
 pub const fn pop_lsb(b: &mut Bitboard) -> Square {
     let lsb = get_lsb(*b);
-    *b &= (*b - 1);
+    *b &= *b - 1;
     lsb 
 }
 

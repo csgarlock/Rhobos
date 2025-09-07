@@ -68,8 +68,8 @@ pub fn magic_init() {
             }
             let rook_result= find_magic::<{ PieceType::Rook }>(square, &mut ROOK_MAGICS[square as usize], &mut ROOK_TABLE[running_rook_offset..], &mut rook_rng);
             let bishop_result = find_magic::<{ PieceType::Bishop }>(square, &mut BISHOP_MAGICS[square as usize], &mut BISHOP_TABLE[running_bishop_offset..], &mut bishop_rng);
-            unsafe { ROOK_MAGICS[square as usize].offset = running_rook_offset as u32 };
-            unsafe { BISHOP_MAGICS[square as usize].offset = running_bishop_offset as u32 };
+            ROOK_MAGICS[square as usize].offset = running_rook_offset as u32;
+            BISHOP_MAGICS[square as usize].offset = running_bishop_offset as u32;
             running_rook_offset += rook_result.0;
             running_bishop_offset += bishop_result.0;
             running_total += rook_result.1 + bishop_result.1;

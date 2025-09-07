@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{fmt::Display, hint::unreachable_unchecked, marker::ConstParamTy, mem::transmute};
-use crate::{bitboard::{board_from_square, get_lsb, is_valid_square, pop_lsb, pretty_string_bitboard, rank, shift_bitboard, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{build_move, build_simple_move, move_destination_square, move_origin_square, move_special_info, move_special_type, Move, BISHOP_PROMOTION, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, KNIGHT_PROMOTION, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, move_gen::MoveGenType, move_list::MoveStack, piece_info::{make_step, move_bitboard, Direction, PieceType, Step, PAWN_ATTACK_BOARDS}};
+use crate::{bitboard::{board_from_square, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}};
 
 #[repr(u8)]
 #[derive(Clone, Copy, ConstParamTy, PartialEq, Eq, Debug)]
@@ -59,14 +59,13 @@ impl State {
             Color::Black => self.get_colored_piece_at_square::<{Color::White}>(des_square),
         };
 
-        let is_capture = match des_piece_type_option {
+        match des_piece_type_option {
             Some(des_piece_type) => {
                 capture_entry = CaptureEntry{ piece: Some(des_piece_type), bitboard: self.get_piece_board(C.other(), des_piece_type) };
                 self.clear_square(des_square, C.other(), des_piece_type);
                 self.half_move_clock = 0;
-                true
             },
-            None => false
+            None => (),
         };
         match move_special_type(m) {
             NOT_SPECIAL_MOVE => {
@@ -104,7 +103,7 @@ impl State {
                 let castle_type: CastleAvailability = unsafe { transmute(move_special_info(m)) };
                 let (old_rook_square, new_rook_square) = match castle_type {
                     CastleAvailability::King => { 
-                        unsafe { self.toggle_castle_availability::<C, {CastleAvailability::King}>() };
+                        self.toggle_castle_availability::<C, {CastleAvailability::King}>();
                         (7 + C.castle_shift(), 5 + C.castle_shift())
                     },
                     CastleAvailability::Queen => {
@@ -375,20 +374,6 @@ impl State {
             _ => false,
         }
     }
-
-    pub fn debug_quick_make_move(&mut self, m: Move) -> bool {
-        match self.turn {
-            Color::White => self.make_move::<{Color::White}>(m),
-            Color::Black => self.make_move::<{Color::Black}>(m),
-        }
-    }
-
-    pub fn debug_quick_unmake_move(&mut self, m: Move) {
-        match self.turn {
-            Color::White => self.unmake_move::<{Color::Black}>(m),
-            Color::Black => self.unmake_move::<{Color::White}>(m),
-        }
-    }
 }
 
 impl Display for State {
@@ -403,7 +388,7 @@ impl Display for State {
             }
         }
         let bottom_line = "  -----------------".to_string();
-        write!(f, "{}\n", bottom_line);
+        write!(f, "{}\n", bottom_line)?;
         for i in (0..8).rev() {
             let mut line = format!("{} ", i+1);
             for j in 0..8 {
@@ -415,12 +400,12 @@ impl Display for State {
                     line += &spot.to_string();
                 }
             }
-            write!(f, "{}|\n{}\n", line, bottom_line);
+            write!(f, "{}|\n{}\n", line, bottom_line)?;
         }
-        write!(f, " a b c d e f g h\n");
-        write!(f, "Turn: {}\n", if self.turn == Color::White {"White"} else {"Black"});
+        write!(f, " a b c d e f g h\n")?;
+        write!(f, "Turn: {}\n", if self.turn == Color::White {"White"} else {"Black"})?;
         if self.check {
-            write!(f, "In Check\n");
+            write!(f, "In Check\n")?;
         }
         Ok(())
     }

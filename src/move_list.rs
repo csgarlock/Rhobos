@@ -129,6 +129,7 @@ impl MoveList {
 }
 
 impl MoveFetchStage {
+    #[allow(dead_code)]
     fn next(self) -> MoveFetchStage {
         match self {
             MoveFetchStage::Start => MoveFetchStage::TTMove,
