@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{fmt::Display, hint::unreachable_unchecked, marker::ConstParamTy, mem::transmute};
-use crate::{bitboard::{board_from_square, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}};
+use crate::{bitboard::{board_from_square, file, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, hash::{CASTLE_HASHES, EN_PASSANT_HASHES, SQUARE_HASHES}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}};
 
 #[repr(u8)]
 #[derive(Clone, Copy, ConstParamTy, PartialEq, Eq, Debug)]
@@ -48,11 +48,11 @@ impl State {
         self.check_history.push(self.check);
         let mut capture_entry = CaptureEntry::empty();
 
-        self.clear_en_passant();
+        self.clear_en_passant::<true>();
 
         let src_piece_type = self.force_get_colored_piece_at_square::<C>(src_square);
-        self.clear_square(src_square, C, src_piece_type);
-        self.set_square(des_square, C, src_piece_type);
+        self.clear_square::<true>(src_square, C, src_piece_type);
+        self.set_square::<true>(des_square, C, src_piece_type);
 
         let des_piece_type_option = match C {
             Color::White => self.get_colored_piece_at_square::<{Color::Black}>(des_square),
@@ -62,7 +62,7 @@ impl State {
         match des_piece_type_option {
             Some(des_piece_type) => {
                 capture_entry = CaptureEntry{ piece: Some(des_piece_type), bitboard: self.get_piece_board(C.other(), des_piece_type) };
-                self.clear_square(des_square, C.other(), des_piece_type);
+                self.clear_square::<true>(des_square, C.other(), des_piece_type);
                 self.half_move_clock = 0;
             },
             None => (),
@@ -73,25 +73,25 @@ impl State {
                     PieceType::King => {
                         if src_square == State::king_square::<C>() {
                             match self.castle_availability[C as usize] {
-                                CastleAvailability::Both => self.toggle_castle_availability::<C, {CastleAvailability::Both}>(),
-                                CastleAvailability::King => self.toggle_castle_availability::<C, {CastleAvailability::King}>(),
-                                CastleAvailability::Queen => self.toggle_castle_availability::<C, {CastleAvailability::Queen}>(),
+                                CastleAvailability::Both => self.toggle_castle_availability::<C, {CastleAvailability::Both}, true>(),
+                                CastleAvailability::King => self.toggle_castle_availability::<C, {CastleAvailability::King}, true>(),
+                                CastleAvailability::Queen => self.toggle_castle_availability::<C, {CastleAvailability::Queen}, true>(),
                                 CastleAvailability::None => (),
                             }
                         }
                     },
                     PieceType::Rook => {
                         if src_square == CastleAvailability::rook_square::<C, {CastleAvailability::King}>() {
-                            self.clear_castle_availability::<C, {CastleAvailability::King}>();
+                            self.clear_castle_availability::<C, {CastleAvailability::King}, true>();
                         } else if src_square == CastleAvailability::rook_square::<C, {CastleAvailability::Queen}>() {
-                            self.clear_castle_availability::<C, {CastleAvailability::Queen}>();
+                            self.clear_castle_availability::<C, {CastleAvailability::Queen}, true>();
                         }
                     }
                     PieceType::Pawn => {
                         let rank_diff = rank(src_square) as i8 - rank(des_square) as i8;
                         if rank_diff == 2 || rank_diff == -2 {
                             self.en_passant_square = make_step(src_square, C.up() as i8);
-                            self.set_en_passant(self.en_passant_square);
+                            self.set_en_passant::<true>(self.en_passant_square);
                         }
                         self.half_move_clock = 0;
                     }
@@ -103,29 +103,29 @@ impl State {
                 let castle_type: CastleAvailability = unsafe { transmute(move_special_info(m)) };
                 let (old_rook_square, new_rook_square) = match castle_type {
                     CastleAvailability::King => { 
-                        self.toggle_castle_availability::<C, {CastleAvailability::King}>();
+                        self.toggle_castle_availability::<C, {CastleAvailability::King}, true>();
                         (7 + C.castle_shift(), 5 + C.castle_shift())
                     },
                     CastleAvailability::Queen => {
-                        self.toggle_castle_availability::<C, {CastleAvailability::Queen}>();
+                        self.toggle_castle_availability::<C, {CastleAvailability::Queen}, true>();
                         (C.castle_shift(), 3 + C.castle_shift())
                     },
                     _ => { debug_assert!(false); unsafe { unreachable_unchecked() }; },
                 };
-                self.clear_square(old_rook_square, C, PieceType::Rook);
-                self.set_square(new_rook_square, C, PieceType::Rook);
+                self.clear_square::<true>(old_rook_square, C, PieceType::Rook);
+                self.set_square::<true>(new_rook_square, C, PieceType::Rook);
             },
             PROMOTION_SPECIAL_MOVE => {
                 let promotion_type = move_special_info(m);
                 debug_assert!(promotion_type < 4);
-                self.clear_square(des_square, C, PieceType::Pawn);
-                unsafe { self.set_square_raw(des_square, C as u8, promotion_type + 1) };
+                self.clear_square::<true>(des_square, C, PieceType::Pawn);
+                unsafe { self.set_square_raw::<true>(des_square, C as u8, promotion_type + 1) };
             },
             EN_PASSANT_SPECIAL_MOVE => {
                 let down_step = C.down() as Step;
                 let en_passant_square = make_step(des_square, down_step);
                 capture_entry = CaptureEntry { piece: Some(PieceType::Pawn), bitboard: self.get_piece_board(C.other(), PieceType::Pawn) };
-                self.clear_square(en_passant_square, C.other(), PieceType::Pawn);
+                self.clear_square::<true>(en_passant_square, C.other(), PieceType::Pawn);
             }
             _ => { debug_assert!(false); unsafe { unreachable_unchecked() }; },
         }
@@ -175,8 +175,8 @@ impl State {
         self.check = self.check_history.pop().value();
         
         let src_piece_type = self.force_get_colored_piece_at_square::<C>(des_square);
-        self.clear_square(des_square, C, src_piece_type);
-        self.set_square(src_square, C, src_piece_type);
+        self.clear_square::<false>(des_square, C, src_piece_type);
+        self.set_square::<false>(src_square, C, src_piece_type);
         
         let capture_entry = self.capture_history.pop().value();
         match capture_entry.0 {
@@ -195,14 +195,14 @@ impl State {
                     CastleAvailability::Queen => (C.castle_shift(), 3 + C.castle_shift()),
                     _ => unreachable!(),
                 };
-                self.clear_square(new_rook_square, C, PieceType::Rook);
-                self.set_square(old_rook_square, C, PieceType::Rook);
+                self.clear_square::<false>(new_rook_square, C, PieceType::Rook);
+                self.set_square::<false>(old_rook_square, C, PieceType::Rook);
             },
             PROMOTION_SPECIAL_MOVE => {
                 let promotion_type = move_special_info(m);
                 debug_assert!(promotion_type < 4);
-                self.set_square(src_square, C, PieceType::Pawn);
-                unsafe { self.clear_square_raw(src_square, C as u8, promotion_type + 1) };
+                self.set_square::<false>(src_square, C, PieceType::Pawn);
+                unsafe { self.clear_square_raw::<false>(src_square, C as u8, promotion_type + 1) };
             },
             _ => (),
         }
@@ -263,31 +263,43 @@ impl State {
     }
 
     #[inline(always)]
-    pub fn set_square(&mut self, square: Square, color: Color, piece_type: PieceType) {
+    pub fn set_square<const H: bool>(&mut self, square: Square, color: Color, piece_type: PieceType) {
         debug_assert!(is_valid_square(square));
         self.board[piece_type.colored_value(color) as usize] |= board_from_square(square);
+        if H {
+            self.hashcode ^= unsafe { SQUARE_HASHES[piece_type.colored_value(color) as usize][square as usize] }
+        }
     }
 
     #[inline(always)]
-    pub unsafe fn set_square_raw(&mut self, square: Square, color: u8, piece_type: u8) {
+    pub unsafe fn set_square_raw<const H: bool>(&mut self, square: Square, color: u8, piece_type: u8) {
         debug_assert!(color < 2);
         debug_assert!(piece_type < 6);
         debug_assert!(is_valid_square(square));
         unsafe { *self.board.get_unchecked_mut((color * 6 + piece_type) as usize) |= board_from_square(square) };
+        if H {
+            self.hashcode ^= unsafe { SQUARE_HASHES[(color * 6 + piece_type) as usize][square as usize] }
+        }
     }
 
     #[inline(always)]
-    pub fn clear_square(&mut self, square: Square, color: Color, piece_type: PieceType){
+    pub fn clear_square<const H: bool>(&mut self, square: Square, color: Color, piece_type: PieceType){
         debug_assert!(is_valid_square(square));
         self.board[piece_type.colored_value(color) as usize] &= !board_from_square(square);
+        if H {
+            self.hashcode ^= unsafe { SQUARE_HASHES[piece_type.colored_value(color) as usize][square as usize] }
+        }
     }
 
     #[inline(always)]
-    pub unsafe fn clear_square_raw(&mut self, square: Square, color: u8, piece_type: u8) {
+    pub unsafe fn clear_square_raw<const H: bool>(&mut self, square: Square, color: u8, piece_type: u8) {
         debug_assert!(color < 2);
         debug_assert!(piece_type < 6);
         debug_assert!(is_valid_square(square));
         unsafe { *self.board.get_unchecked_mut((color * 6 + piece_type) as usize) &= !board_from_square(square) };
+        if H {
+            self.hashcode ^= unsafe { SQUARE_HASHES[(color * 6 + piece_type) as usize][square as usize] }
+        }
     }
 
     #[inline(always)]
@@ -304,25 +316,53 @@ impl State {
     }
 
     #[inline(always)]
-    pub fn toggle_castle_availability<const C: Color, const A: CastleAvailability>(&mut self) {
+    pub fn toggle_castle_availability<const C: Color, const A: CastleAvailability, const H: bool>(&mut self) {
         let bit_mask = CastleAvailability::bit_mask::<A>();
         self.castle_availability[C as usize] = unsafe { transmute(self.castle_availability[C as usize] as u8 ^ bit_mask) };
+        if H {
+            match A {
+                CastleAvailability::Both => {
+                    self.hashcode = unsafe { CASTLE_HASHES[C as usize] };
+                    self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] };
+                },
+                CastleAvailability::King => self.hashcode = unsafe { CASTLE_HASHES[C as usize] },
+                CastleAvailability::Queen => self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] },
+                CastleAvailability::None => (),
+            }
+        }
     }
 
     #[inline(always)]
-    pub fn clear_castle_availability<const C: Color, const A: CastleAvailability>(&mut self) {
+    pub fn clear_castle_availability<const C: Color, const A: CastleAvailability, const H: bool>(&mut self) {
         let bit_mask = CastleAvailability::bit_mask::<A>();
         self.castle_availability[C as usize] = unsafe { transmute(self.castle_availability[C as usize] as u8 & !bit_mask) };
+        if H {
+            match A {
+                CastleAvailability::Both => {
+                    self.hashcode = unsafe { CASTLE_HASHES[C as usize] };
+                    self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] };
+                },
+                CastleAvailability::King => self.hashcode = unsafe { CASTLE_HASHES[C as usize] },
+                CastleAvailability::Queen => self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] },
+                CastleAvailability::None => (),
+            }
+        }
     }
 
     #[inline(always)]
-    pub fn set_en_passant(&mut self, square: Square) {
+    pub fn set_en_passant<const H: bool>(&mut self, square: Square) {
         self.en_passant_square = square;
+        if H {
+            self.hashcode ^= unsafe { EN_PASSANT_HASHES[file(square) as usize] }
+        }
     }
 
     #[inline(always)]
-    pub fn clear_en_passant(&mut self) {
+    pub fn clear_en_passant<const H: bool>(&mut self) {
         self.en_passant_square = NULL_SQUARE;
+        if H && self.en_passant_square != NULL_SQUARE {
+            self.hashcode ^= unsafe { EN_PASSANT_HASHES[file(self.en_passant_square) as usize] }
+        }
     }
 
     #[inline(always)]

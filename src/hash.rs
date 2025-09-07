@@ -3,10 +3,10 @@ use rand::{rng, RngCore};
 use crate::{bitboard::{file, pop_lsb, Color, NULL_SQUARE}, state::{CastleAvailability, State}};
 
 
-static mut SQUARE_HASHES: [[u64; 12]; 64] = [[0; 12]; 64];
-static mut EN_PASSANT_HASHES: [u64; 8] = [0; 8];
-static mut CASTLE_HASHES: [u64; 4] = [0; 4];
-static mut BLACK_HASH: u64 = 0;
+pub static mut SQUARE_HASHES: [[u64; 64]; 12] = [[0; 64]; 12];
+pub static mut EN_PASSANT_HASHES: [u64; 8] = [0; 8];
+pub static mut CASTLE_HASHES: [u64; 4] = [0; 4];
+pub static mut BLACK_HASH: u64 = 0;
 
 pub fn setup_hashes() {
     let mut rng = rng();

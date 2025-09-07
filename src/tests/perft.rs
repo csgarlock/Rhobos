@@ -28,6 +28,7 @@ fn perft_test() {
 
 #[allow(dead_code)]
 pub fn perft<const C: Color>(state: &mut State, depth: i64, move_count: &mut i64) {
+    assert_eq!(state.hashcode, state.get_hash());
     if depth == 0 {
         *move_count += 1;
     } else {
