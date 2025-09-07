@@ -16,8 +16,8 @@ pub const EN_PASSANT_SPECIAL_MOVE: u8 = 3;
 
 pub const QUEEN_PROMOTION:   u8 = 0;
 pub const ROOK_PROMOTION:    u8 = 1;
-pub const KNIGHT_PROMOTION:  u8 = 2;
-pub const BISHOP_PROMOTION:  u8 = 3;
+pub const BISHOP_PROMOTION:  u8 = 2;
+pub const KNIGHT_PROMOTION:  u8 = 3;
 
 pub const KING_CASTLE: u8 = 0b01;
 pub const QUEEN_CASTLE: u8 = 0b10;

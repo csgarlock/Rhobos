@@ -11,7 +11,6 @@ pub enum MoveGenType {
 
 impl State {
     pub fn gen_all_moves<const C: Color, const G: MoveGenType>(&mut self) {
-        debug_assert!(!self.check);
         let mask = match G {
             MoveGenType::Capture => self.side_occupied[C.other() as usize],
             MoveGenType::Quiet => self.not_occupied,
@@ -49,7 +48,7 @@ impl State {
                 self.move_stack.push_current(build_simple_move(king_square, des_square));
             }
         }
-        if G.should_gen_quiets() && king_square == State::king_square::<C>(){
+        if G.should_gen_quiets() && king_square == State::king_square::<C>() && !self.check {
             match self.castle_availability[C as usize] {
                 CastleAvailability::Both => {
                     self.gen_king_castle::<C, { CastleAvailability::King }>();
@@ -62,7 +61,7 @@ impl State {
         }
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn gen_king_castle<const C: Color, const A: CastleAvailability>(&mut self) {
         debug_assert!(A != CastleAvailability::Both && A != CastleAvailability::None);
         let color_shift = C.castle_shift();

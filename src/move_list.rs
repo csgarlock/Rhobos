@@ -54,7 +54,6 @@ impl MoveStack {
     #[inline(always)]
     pub fn previous(&mut self) {
         self.current -= 1;
-        self.get_current().reset();
     }
 
     #[inline(always)]
@@ -116,7 +115,7 @@ impl MoveList {
 
     #[inline(always)]
     pub fn total_moves(&self) -> usize {
-        self.last + 1
+        self.last
     }
 
     pub fn debug_string_moves(&mut self) -> Vec<String> {
