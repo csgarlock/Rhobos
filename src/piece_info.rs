@@ -112,6 +112,18 @@ impl PieceType {
            PieceType::Pawn => {&[]}
         }
     }
+
+    #[inline(always)]
+    pub const fn lva_mvv_value(self) -> i8 {
+        match self {
+            PieceType::King => {debug_assert!(false); 5},
+            PieceType::Queen => 4,
+            PieceType::Rook => 3,
+            PieceType::Bishop => 2,
+            PieceType::Knight => 1,
+            PieceType::Pawn => 0,
+        }
+    }
 }
 
 pub fn movement_info_init() {

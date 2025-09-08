@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use std::{io::stdin, time::Instant};
 
 use crate::{bitboard::Color, r#move::{pretty_string_move, Move}, state::State, tests::perft::perft};
@@ -11,19 +10,17 @@ pub fn perft_checker(state: &mut State, depth: i64) {
         state.debug_quick_gen_moves();
         let mut total = 0;
         let mut results = Vec::new();
-        for i in 0..state.move_stack.get_current().total_moves() {
-            let m = state.move_stack.get_current().current();
-            if state.debug_quick_make_move(m) {
+        for (i, m) in state.debug_move_vec().iter().enumerate() {
+            if state.debug_quick_make_move(*m) {
                 let mut counter = 0;
                 debug_quick_perft(state, current_depth, &mut counter);
-                results.push(format!("{}, Move {}: {}", pretty_string_move(m), i, counter));
+                results.push(format!("{}, Move {}: {}", pretty_string_move(*m), i, counter));
                 total += counter;
             }
-            state.debug_quick_unmake_move(m);
-            state.move_stack.get_current().next();
+            state.debug_quick_unmake_move(*m);
         }
         results.sort();
-        println!("Ply Moves: {}", state.move_stack.get_current().total_moves());
+        println!("Ply Moves: {}", state.current_move_list().total_moves());
         println!("Total Time: {:?}", start.elapsed());
         println!("Total Moves: {}", total);
         results.iter().for_each(|s| println!("{}", s));
@@ -43,7 +40,7 @@ pub fn perft_checker(state: &mut State, depth: i64) {
                 }
             }
         })();
-        let chosen_move = state.move_stack.get_current().vec[move_num];
+        let chosen_move = state.current_move_list().move_vec[move_num];
         state.debug_quick_make_move(chosen_move);
         current_depth -= 1;
     }
@@ -70,5 +67,13 @@ impl State {
             Color::White => self.unmake_move::<{Color::Black}>(m),
             Color::Black => self.unmake_move::<{Color::White}>(m),
         }
+    }
+
+    pub fn debug_move_vec(&mut self) -> Vec<Move> {
+        let mut result = Vec::new();
+        for i in 0..self.current_move_list().last {
+            result.push(self.current_move_list().move_vec[i]);
+        }
+        result
     }
 }

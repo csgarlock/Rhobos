@@ -210,6 +210,20 @@ impl State {
         self.update_occupied();
         self.move_stack.previous();
     }
+
+    pub fn non_reversible_move(&mut self, m: Move) {
+        match self.turn {
+            Color::White => self.make_move::<{Color::White}>(m),
+            Color::Black => self.make_move::<{Color::Black}>(m),
+        };
+        self.move_stack.previous();
+        self.en_passant_history.pop();
+        self.castle_history.pop();
+        self.fifty_move_history.pop();
+        self.hash_history.pop();
+        self.check_history.pop();
+        self.castle_history.pop();
+    }
     
     #[inline(always)]
     pub fn is_square_safe<const C: Color, const U: bool>(&self, square: Square, un_set_square: Square) -> bool {

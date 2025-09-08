@@ -33,8 +33,7 @@ pub fn perft<const C: Color>(state: &mut State, depth: i64, move_count: &mut i64
         *move_count += 1;
     } else {
         state.gen_all_moves::<C, {MoveGenType::All}>();
-        for _ in 0..state.move_stack.get_current().total_moves() {
-            let m = state.move_stack.get_current().current();
+        for m in state.debug_move_vec() {
             if state.make_move::<C>(m) {
                 match C {
                     Color::White => perft::<{Color::Black}>(state, depth-1, move_count),
@@ -42,7 +41,6 @@ pub fn perft<const C: Color>(state: &mut State, depth: i64, move_count: &mut i64
                 }
             }
             state.unmake_move::<C>(m);
-            state.move_stack.get_current().next();
         }
     }
 }

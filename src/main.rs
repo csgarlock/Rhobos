@@ -3,14 +3,17 @@
 
 pub mod bitboard;
 pub mod debugging;
+pub mod evaluation;
 pub mod hash;
 pub mod histories;
 pub mod magic;
 pub mod move_gen;
 pub mod move_list;
+pub mod move_pick;
 pub mod r#move;
 pub mod parsing;
 pub mod piece_info;
+pub mod search;
 pub mod state;
 
 pub mod tests;
