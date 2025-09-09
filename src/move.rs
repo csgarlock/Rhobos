@@ -67,7 +67,7 @@ pub fn pretty_string_move(m: Move) -> String {
             KNIGHT_PROMOTION => "=N",
             _ => unreachable!(),
         }} else {""};
-        return pretty_string_square(move_origin_square(m)) +
+        pretty_string_square(move_origin_square(m)) +
             &pretty_string_square(move_destination_square(m)) +
-            &promotion_string.to_string();
+            promotion_string
 }

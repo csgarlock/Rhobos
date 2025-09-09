@@ -210,7 +210,7 @@ pub fn move_bitboard<const P: PieceType>(square: Square, occupied: Bitboard) -> 
     debug_assert!(is_valid_square(square));
     match P {
         PieceType::King => {
-            return unsafe { *MOVE_BOARDS[KING as usize].get_unchecked(square as usize) }
+            unsafe { *MOVE_BOARDS[KING as usize].get_unchecked(square as usize) }
         },
         PieceType::Queen => {
             move_bitboard::< {PieceType::Bishop}>(square, occupied) | move_bitboard::< {PieceType::Rook}>(square, occupied)

@@ -59,14 +59,12 @@ impl State {
             Color::Black => self.get_colored_piece_at_square::<{Color::White}>(des_square),
         };
 
-        match des_piece_type_option {
-            Some(des_piece_type) => {
-                capture_entry = CaptureEntry{ piece: Some(des_piece_type), bitboard: self.get_piece_board(C.other(), des_piece_type) };
-                self.clear_square::<true>(des_square, C.other(), des_piece_type);
-                self.half_move_clock = 0;
-            },
-            None => (),
-        };
+        if let Some(des_piece_type) = des_piece_type_option {
+            capture_entry = CaptureEntry{ piece: Some(des_piece_type), bitboard: self.get_piece_board(C.other(), des_piece_type) };
+            self.clear_square::<true>(des_square, C.other(), des_piece_type);
+            self.half_move_clock = 0;
+        }
+
         match move_special_type(m) {
             NOT_SPECIAL_MOVE => {
                 match src_piece_type {
@@ -150,11 +148,11 @@ impl State {
 
         // Quick legality for now
         match C {
-            Color::White => return self.is_square_safe::<{Color::White}, false>(
+            Color::White => self.is_square_safe::<{Color::White}, false>(
                 get_lsb(self.get_piece_board(Color::White, PieceType::King)),
                 NULL_SQUARE
             ),
-            Color::Black => return self.is_square_safe::<{Color::Black}, false>(
+            Color::Black => self.is_square_safe::<{Color::Black}, false>(
                 get_lsb(self.get_piece_board(Color::Black, PieceType::King)),
                 NULL_SQUARE
             )
@@ -179,11 +177,8 @@ impl State {
         self.set_square::<false>(src_square, C, src_piece_type);
         
         let capture_entry = self.capture_history.pop().value();
-        match capture_entry.0 {
-            Some(piece_type) => {
-                self.set_piece_board(capture_entry.1, C.other(), piece_type);
-            }
-            None => (),
+        if let Some(piece_type) = capture_entry.0 {
+            self.set_piece_board(capture_entry.1, C.other(), piece_type);
         }
 
         match move_special_type(m) {
@@ -442,7 +437,7 @@ impl Display for State {
             }
         }
         let bottom_line = "  -----------------".to_string();
-        write!(f, "{}\n", bottom_line)?;
+        writeln!(f, "{}", bottom_line)?;
         for i in (0..8).rev() {
             let mut line = format!("{} ", i+1);
             for j in 0..8 {
@@ -454,12 +449,12 @@ impl Display for State {
                     line += &spot.to_string();
                 }
             }
-            write!(f, "{}|\n{}\n", line, bottom_line)?;
+            writeln!(f, "{}|\n{}", line, bottom_line)?;
         }
-        write!(f, " a b c d e f g h\n")?;
-        write!(f, "Turn: {}\n", if self.turn == Color::White {"White"} else {"Black"})?;
+        writeln!(f, " a b c d e f g h")?;
+        writeln!(f, "Turn: {}", if self.turn == Color::White {"White"} else {"Black"})?;
         if self.check {
-            write!(f, "In Check\n")?;
+            writeln!(f, "In Check")?;
         }
         Ok(())
     }

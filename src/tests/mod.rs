@@ -7,5 +7,5 @@ pub mod perft;
 static INIT: Once = Once::new();
 
 pub fn init() {
-    INIT.call_once(|| movement_info_init());
+    INIT.call_once(movement_info_init);
 }

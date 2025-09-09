@@ -85,8 +85,8 @@ pub struct History<T: HistoryEntry> {
 
 impl<T: HistoryEntry> History<T>  {
     pub fn new(starting_length: usize) -> History<T> {
-        let vector = vec![T::empty(); starting_length as usize];
-        History { vector: vector, current_index: 0 }
+        let vector = vec![T::empty(); starting_length];
+        History { vector, current_index: 0 }
     }
 
     pub fn pop(&mut self) -> T {

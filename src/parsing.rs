@@ -88,24 +88,23 @@ pub fn parse_fen_string(fen_string: String) -> Result<State, String> {
     }
 
     // Ply Section
-    let ply;
-    match split_fen_string[5].parse::<u16>() {
-        Ok(val) => ply = val,
+    let ply = match split_fen_string[5].parse::<u16>() {
+        Ok(val) => val,
         Err(err) => return Err(err.to_string()),
-    }
+    };
     let mut state = State {
-        board: board,
-        side_occupied: side_occupied,
+        board,
+        side_occupied,
         occupied: side_occupied[0] | side_occupied[1],
         not_occupied: !(side_occupied[0] | side_occupied[1]),
         turn: if split_fen_string[1] == "w" {Color::White} else {Color::Black},
-        ply: ply,
-        en_passant_square: en_passant_square,
+        ply,
+        en_passant_square,
         check: false,
         hashcode: 0,
         half_move_clock: split_fen_string[4].parse().unwrap(),
         move_stack: MoveStack::new(25),
-        castle_availability: castle_availability,
+        castle_availability,
         capture_history: History::new(5),
         en_passant_history: History::new(5),
         castle_history: History::new(5),

@@ -79,7 +79,8 @@ impl State {
                         }
                     }
                 }
-                false
+                self.next_stage::<T, {MovePickStage::KillerMoves}>();
+                self.pick_next_move::<T>()
             },
             MovePickStage::QuietMoves => {
                 let mut best_move = NULL_MOVE;
@@ -98,7 +99,7 @@ impl State {
                     }
                 }
                 if best_move == NULL_MOVE {
-                self.next_stage::<T, {MovePickStage::QuietMoves}>();
+                    self.next_stage::<T, {MovePickStage::QuietMoves}>();
                     self.pick_next_move::<T>()
                 } else {
                     self.current_move_list().current = best_move;
@@ -107,8 +108,7 @@ impl State {
                 }
             },
             MovePickStage::Done => false,
-        };
-        todo!()
+        }
     }
 
     #[inline(always)]

@@ -17,7 +17,7 @@ pub const EMPTY_BITBOARD:     Bitboard = 0;
 pub const UNIVERSAL_BITBOARD: Bitboard = !EMPTY_BITBOARD;
 
 pub const RANK0: Bitboard = 0xff;
-pub const RANK1: Bitboard = RANK0 << (8 * 1);
+pub const RANK1: Bitboard = RANK0 << 8;
 pub const RANK2: Bitboard = RANK0 << (8 * 2);
 pub const RANK3: Bitboard = RANK0 << (8 * 3);
 pub const RANK4: Bitboard = RANK0 << (8 * 4);
@@ -130,9 +130,9 @@ impl Color {
 }
 
 #[inline(always)]
-pub const fn rank(s: Square) -> u8 { (s / 8) as u8 }
+pub const fn rank(s: Square) -> u8 { s / 8 }
 #[inline(always)]
-pub const fn file(s: Square) -> u8 { (s % 8) as u8 }
+pub const fn file(s: Square) -> u8 { s % 8 }
 
 #[inline(always)]
 pub const fn get_lsb(b: Bitboard) -> Square {
@@ -192,5 +192,5 @@ pub fn pretty_string_square(s: Square) -> String {
     if s == NULL_SQUARE {
         return String::from("NS");
     }
-    return String::from(FILE_MAP[file(s) as usize]) + &format!("{}", rank(s)+1);
+    String::from(FILE_MAP[file(s) as usize]) + &format!("{}", rank(s)+1)
 }
