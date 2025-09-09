@@ -82,6 +82,7 @@ impl MoveList {
         self.current = 0;
         self.last = 0;
         self.tt_move = NULL_MOVE;
+        self.move_pick_stage = MovePickStage::Start;
     }
 
     #[inline(always)]

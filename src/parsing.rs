@@ -2,19 +2,30 @@ use std::collections::HashMap;
 
 use crate::{bitboard::{get_lsb, Color, Square, EMPTY_BITBOARD, FILE_MAP, NULL_SQUARE}, histories::History, r#move::{build_simple_move, Move}, move_list::MoveStack, piece_info::PieceType, state::{CastleAvailability, State}};
 
-pub fn square_from_string(string: String) -> Square {
-    let rank = string[1..].parse::<Square>().unwrap() - 1;
-    let mut file: u8 = 0;
+pub fn square_from_string(string: String) -> Option<Square> {
+    let rank = match string[1..].parse::<Square>() { 
+        Ok(val) => val - 1,
+        Err(_) => return None,
+    };
+    let mut file = None;
     for (i, r) in FILE_MAP.iter().enumerate() {
         if string.chars().nth(0).unwrap() == *r {
-            file = i as u8;
+            file = Some(i as u8);
         }
     }
-    rank * 8 + file
+    match file {
+        Some(f) => Some(rank * 8 + f),
+        None => None
+    }
 }
 
-pub fn simple_move_from_string(move_string: String) -> Move {
-    build_simple_move(square_from_string(move_string[0..2].to_string()), square_from_string(move_string[2..4].to_string()))
+pub fn simple_move_from_string(move_string: String) -> Option<Move> {
+    let src = square_from_string(move_string[0..2].to_string());
+    let des = square_from_string(move_string[2..4].to_string());
+    match (src, des) {
+        (Some(src_square), Some(des_square)) => Some(build_simple_move(src_square, des_square)),
+        _ => None
+    }
 }
 
 pub fn parse_fen_string(fen_string: String) -> Result<State, String> {

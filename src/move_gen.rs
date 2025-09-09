@@ -201,13 +201,6 @@ impl State {
             self.move_stack.push_current(build_move(src_square, des_square, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE));
         }
     }
-
-    pub fn debug_quick_gen_moves(&mut self) {
-        match self.turn {
-            Color::White => self.gen_all_moves::<{Color::White}, {MoveGenType::All}>(),
-            Color::Black => self.gen_all_moves::<{Color::Black}, {MoveGenType::All}>(),
-        }
-    }
 }
 
 impl CastleAvailability {

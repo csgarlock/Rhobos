@@ -5,6 +5,7 @@ pub type Move = u16;
 pub const NULL_MOVE:    Move = 0x0000;
 pub const PASSING_MOVE: Move = 0xdfff;
 
+const BIT_MASK_12:  u16 = 0xfff;
 const BIT_MASK_6:   u16 = 0x3f;
 const BIT_MASK_2:   u16 = 0x3;
 
@@ -49,6 +50,10 @@ pub const fn build_move(origin: Square, destination: Square, special_info: u8, s
 #[inline(always)]
 pub const fn build_simple_move(origin: Square, destination: Square) -> Move {
     (origin as Move) | ((destination as Move) << 6)
+}
+
+pub fn debug_same_src_des(m1: Move, m2: Move) -> bool {
+    return (m1 & BIT_MASK_12) == (m2 & BIT_MASK_12)
 }
 
 pub fn pretty_string_move(m: Move) -> String {

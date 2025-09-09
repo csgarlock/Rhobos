@@ -1,6 +1,6 @@
 use std::{io::stdin, time::Instant};
 
-use crate::{bitboard::Color, r#move::{pretty_string_move, Move}, state::State, tests::perft::perft};
+use crate::{bitboard::Color, r#move::{pretty_string_move, Move}, move_gen::MoveGenType, state::State, tests::perft::perft};
 
 
 pub fn perft_checker(state: &mut State, depth: i64) {
@@ -67,6 +67,24 @@ impl State {
             Color::White => self.unmake_move::<{Color::Black}>(m),
             Color::Black => self.unmake_move::<{Color::White}>(m),
         }
+    }
+
+    pub fn debug_quick_gen_moves(&mut self) {
+        match self.turn {
+            Color::White => self.gen_all_moves::<{Color::White}, {MoveGenType::All}>(),
+            Color::Black => self.gen_all_moves::<{Color::Black}, {MoveGenType::All}>(),
+        }
+    }
+
+    pub fn debug_validate_moves(&mut self, moves: &Vec<Move>) -> Vec<Move> {
+        let mut result = Vec::new();
+        for m in moves.iter() {
+            if self.debug_quick_make_move(*m) {
+                result.push(*m);
+            }
+            self.debug_quick_unmake_move(*m);
+        }
+        result
     }
 
     pub fn debug_move_vec(&mut self) -> Vec<Move> {

@@ -9,12 +9,13 @@ pub struct Worker {
 
 impl Worker {
     pub fn negamax<const C: Color>(&mut self, state: &mut State, depth: Depth, mut alpha: Evaluation, beta: Evaluation) -> (Evaluation, Move) {
+        debug_assert_eq!(C, state.turn);
         self.nodes_search += 1;
         self.true_depth += 1;
         if depth == 0 {
             let result = match C { 
-                Color::White => self.quiescence_search::<{Color::Black}>(state, alpha, beta),
-                Color::Black => self.quiescence_search::<{Color::White}>(state, alpha, beta),
+                Color::White => self.quiescence_search::<{Color::White}>(state, alpha, beta),
+                Color::Black => self.quiescence_search::<{Color::Black}>(state, alpha, beta),
             };
             self.true_depth -= 1;
             return result;
@@ -25,8 +26,8 @@ impl Worker {
             let current_move = state.current_move_list().current;
             if state.make_move::<C>(current_move) {
                 let score = match C {
-                    Color::White => self.negamax::<{Color::Black}>(state, depth-1, -beta, -alpha).0,
-                    Color::Black => self.negamax::<{Color::White}>(state, depth-1, -beta, -alpha).0,
+                    Color::White => -self.negamax::<{Color::Black}>(state, depth-1, -beta, -alpha).0,
+                    Color::Black => -self.negamax::<{Color::White}>(state, depth-1, -beta, -alpha).0,
                 };
                 if score >= beta {
                     self.true_depth -= 1;
@@ -45,6 +46,7 @@ impl Worker {
     }
 
     pub fn quiescence_search<const C: Color>(&mut self, state: &mut State, mut alpha: Evaluation, beta: Evaluation) -> (Evaluation, Move) {
+        debug_assert_eq!(C, state.turn);
         self.nodes_search += 1;
         self.true_depth += 1;
         let current_eval = state.eval_state();

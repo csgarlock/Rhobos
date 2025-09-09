@@ -10,6 +10,10 @@ pub const KNIGHT_EVAL: Evaluation = CENTI_PAWN * 300;
 pub const PAWN_EVAL: Evaluation = CENTI_PAWN * 100;
 pub const PIECE_EVAL_TABLE: [Evaluation; 6] = [0, QUEEN_EVAL, ROOK_EVAL, BISHOP_EVAL, KNIGHT_EVAL, PAWN_EVAL];
 
+pub const LOWEST_EVAL: Evaluation = -2147483646 + CENTI_PAWN - 2; // The lowest 32 bit value such that the 16 least significant bits are all 0
+pub const HIGHEST_EVAL: Evaluation = 2147483646 - CENTI_PAWN + 2; // The lowest 32 bit value such that the 16 least significant bits are all 0
+
+
 impl State {
     pub fn eval_state(&self) -> Evaluation {
         let mut eval: Evaluation = 0;

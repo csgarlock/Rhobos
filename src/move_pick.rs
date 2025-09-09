@@ -126,6 +126,7 @@ impl State {
                         MovePickStage::CaptureMoves
                     },
                     MovePickStage::CaptureMoves => {
+                        self.current_move_list().last = 0;
                         match self.turn {
                             Color::White => self.gen_all_moves::<{Color::White}, {MoveGenType::Quiet}>(),
                             Color::Black => self.gen_all_moves::<{Color::Black}, {MoveGenType::Quiet}>(),

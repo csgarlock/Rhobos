@@ -35,6 +35,7 @@ pub struct State {
 impl State {
 
     pub fn make_move<const C: Color>(&mut self, m: Move) -> bool {
+        debug_assert_eq!(C, self.turn);
         debug_assert_ne!(m, NULL_MOVE);
 
         let src_square = move_origin_square(m);
@@ -161,7 +162,9 @@ impl State {
 
     // C is the color that originally made the move
     pub fn unmake_move<const C: Color>(&mut self, m: Move) {
+        debug_assert_eq!(C, self.turn.other());
         debug_assert_ne!(m, NULL_MOVE);
+
         let src_square = move_origin_square(m);
         let des_square = move_destination_square(m);
         debug_assert!(src_square < 64 && des_square < 64);

@@ -7,7 +7,7 @@ pub type Square   = u8;
 pub type Board = [Bitboard; 12];
 
 #[repr(u8)]
-#[derive(Clone, Copy, ConstParamTy, PartialEq, Eq)]
+#[derive(Clone, Copy, ConstParamTy, PartialEq, Eq, Debug)]
 pub enum Color {
     White = WHITE_VAL,
     Black = BLACK_VAL,
