@@ -1,9 +1,9 @@
-use crate::evaluation::Evaluation;
+use crate::{evaluation::Evaluation, search::Depth};
 
 
 pub struct Worker {
     pub main_thread: bool,
-    pub true_depth: i16,
+    pub true_depth: Depth,
     pub nodes_searched: u64,
     pub last_ids_score: Evaluation,
 }

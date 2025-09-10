@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::{bitboard::Color, evaluation::{pretty_string_eval, Evaluation, CENTI_PAWN, NEGATIVE_MATE_ZERO, POSITIVE_MATE_ZERO}, r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickType, state::State, worker::Worker};
+use crate::{bitboard::Color, evaluation::{mate_in, pretty_string_eval, Evaluation, CENTI_PAWN, NEGATIVE_MATE_ZERO, POSITIVE_MATE_ZERO}, r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickType, state::State, worker::Worker};
 
 pub type Depth = i32;
 
@@ -86,6 +86,7 @@ impl Worker {
         debug_assert_eq!(C, state.turn);
         debug_assert!(alpha < beta);
         depth = depth.max(0);
+        
         self.nodes_searched += 1;
         self.true_depth += 1;
         if depth == 0 {
@@ -98,7 +99,9 @@ impl Worker {
         }
 
         let mut best_move = NULL_MOVE;
+        let mut any_searched = false;
         while state.pick_next_move::<{MovePickType::Negamax}>() {
+            any_searched = true;
             let current_move = state.current_move_list().current;
             if state.make_move::<C>(current_move) {
                 let score = match C {
@@ -117,6 +120,17 @@ impl Worker {
             }
             state.unmake_move::<C>(current_move);
         }
+
+        // If no moves were search it means either mate or stalemate
+        if !any_searched {
+            self.true_depth -= 1;
+            if state.check {
+                return (mate_in(self.true_depth, true), NULL_MOVE);
+            } else {
+                return (0, NULL_MOVE);
+            }
+        }
+
         self.true_depth -= 1;
         (alpha, best_move)
     }

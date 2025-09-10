@@ -15,6 +15,7 @@ pub mod parsing;
 pub mod piece_info;
 pub mod search;
 pub mod state;
+pub mod transposition;
 pub mod worker;
 
 pub mod tests;
