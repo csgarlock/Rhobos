@@ -246,6 +246,6 @@ pub fn pretty_string_eval(raw_eval: Evaluation) -> String {
         format!("M{}", mate_depth(raw_eval))
     } else {
         let centi_eval = (raw_eval / CENTI_PAWN) as f64;
-        format!("{}", centi_eval / 100.0)
+        format!("{:.2}", centi_eval / 100.0)
     }
 }

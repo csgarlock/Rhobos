@@ -220,7 +220,7 @@ impl State {
         self.fifty_move_history.pop();
         self.hash_history.pop();
         self.check_history.pop();
-        self.castle_history.pop();
+        self.capture_history.pop();
         result
     }
     
@@ -455,7 +455,7 @@ impl Display for State {
             }
             writeln!(f, "{}|\n{}", line, bottom_line)?;
         }
-        writeln!(f, " a b c d e f g h")?;
+        writeln!(f, "   a b c d e f g h")?;
         writeln!(f, "Turn: {}", if self.turn == Color::White {"White"} else {"Black"})?;
         if self.check {
             writeln!(f, "In Check")?;

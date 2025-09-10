@@ -26,7 +26,7 @@ impl Worker {
             if aspiration_window_high > ASPIRATION_MATE_CUTOFF {
                 aspiration_window_low = ASPIRATION_MATE_CUTOFF - (5 * CENTI_PAWN);
                 aspiration_window_high = POSITIVE_MATE_ZERO;
-            } else if aspiration_window_low < ASPIRATION_MATE_CUTOFF {
+            } else if aspiration_window_low < -ASPIRATION_MATE_CUTOFF {
                 aspiration_window_low = NEGATIVE_MATE_ZERO;
                 aspiration_window_high = -ASPIRATION_MATE_CUTOFF + (5 * CENTI_PAWN);
             }
@@ -65,10 +65,11 @@ impl Worker {
                 current_depth += 1;
                 best_move = new_move;
                 eval_guess = new_score;
-                aspiration_delta = ASPIRATION_OFFSET[usize::max(current_depth as usize, MAX_ASPIRATION_OFFSET_INDEX)];
+                aspiration_delta = ASPIRATION_OFFSET[usize::min(current_depth as usize, MAX_ASPIRATION_OFFSET_INDEX - 1)];
                 aspiration_window_low = eval_guess - aspiration_delta;
                 aspiration_window_high = eval_guess + aspiration_delta;
             }
+            state.current_move_list().reset();
         }
         self.last_ids_score = eval_guess;
         if info_print {
@@ -127,6 +128,7 @@ impl Worker {
         self.true_depth += 1;
         let current_eval = state.eval_state(C);
         if current_eval >= beta {
+            self.true_depth -= 1;
             return (beta, NULL_MOVE);
         }
         if alpha < current_eval {

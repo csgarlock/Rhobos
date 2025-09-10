@@ -26,11 +26,12 @@ use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, de
 fn main() {
     move_gen_init();
     eval_info_init();
+    ui_game();
 }
 
 #[allow(dead_code)]
 fn ui_game() {
-    let player_side = prompt_until("What color do you want (white/black)", |str| {
+    let player_side = prompt_until("What color do you want (white/black): ", |str| {
         let lower_case = str.to_lowercase();
         if lower_case == "white" || lower_case == "w" { return Some(Color::White) }
         else if lower_case == "black" || lower_case == "b" { return Some(Color::Black) }
@@ -47,7 +48,7 @@ fn ui_game() {
             let non_validated_moves = state.debug_move_vec();
             state.current_move_list().reset();
             let valid_moves = state.debug_validate_moves(&non_validated_moves);
-            let mut user_move = prompt_until("Enter a move", |str| {
+            let mut user_move = prompt_until("Enter a move: ", |str| {
                 if str.len() != 4 { return None }
                 let m = match simple_move_from_string(str.to_string()) {
                     Some(val) => val,
@@ -61,7 +62,7 @@ fn ui_game() {
                 None
             });
             if move_special_type(user_move) == PROMOTION_SPECIAL_MOVE {
-                let promotion = prompt_until("What piece do you want to promote to (queen/rook/bishop/knight)", |str| {
+                let promotion = prompt_until("What piece do you want to promote to (queen/rook/bishop/knight): ", |str| {
                     match str.to_lowercase() {
                         val if val == "queen".to_string() => Some(QUEEN_PROMOTION),
                         val if val == "rook".to_string() => Some(ROOK_PROMOTION),
@@ -74,7 +75,7 @@ fn ui_game() {
             }
             assert!(state.non_reversible_move(user_move))
         } else {
-            let search_time = prompt_until("How long would you like to search", |str| {
+            let search_time = prompt_until("How long would you like to search: ", |str| {
                 match str.parse::<f64>() {
                     Ok(val) => Some(val),
                     Err(_) => None,

@@ -1,7 +1,8 @@
 use std::{marker::ConstParamTy, mem::transmute};
 use crate::{bitboard::Color, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, EN_PASSANT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_gen::MoveGenType, move_list::NUM_KILLERS, piece_info::PieceType, state::State};
 
-static mut HISTORY_TABLE: [[u64; 64]; 12] = [[0; 64]; 12];
+// Set to 1 so that there will always be a move better than null move for quiet move ordering.
+static mut HISTORY_TABLE: [[u64; 64]; 12] = [[1; 64]; 12];
 
 #[derive(Clone, Copy, PartialEq, Eq, ConstParamTy)]
 #[repr(u8)]

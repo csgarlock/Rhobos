@@ -57,6 +57,9 @@ pub fn debug_same_src_des(m1: Move, m2: Move) -> bool {
 }
 
 pub fn pretty_string_move(m: Move) -> String {
+    if m == NULL_MOVE {
+        return "Null Move".to_string();
+    }
     if move_special_type(m) == CASTLE_SPECIAL_MOVE {
         if move_destination_square(m) == 2 || move_destination_square(m) == 58 {
             return "O-O-O".to_string();
