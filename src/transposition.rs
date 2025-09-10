@@ -102,6 +102,17 @@ pub fn search_tt_state(state: &State) -> Option<TTableData> {
     }
 }
 
+#[cfg(target_arch = "x86_64")]
+pub fn prefetch_tt_address(state: &State) {
+    let hash = state.hashcode;
+    let index = tt_index(hash);
+    debug_assert!(index < unsafe { TRANSPOSITION_TABLE.entries as usize });
+    unsafe { std::arch::x86_64::_mm_prefetch::<{std::arch::x86_64::_MM_HINT_T0}>(TRANSPOSITION_TABLE.data_pointer.add(index) as *mut i8) };
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+pub fn prefetch_tt_address(state: &State) {}
+
 pub const fn eval_convert_precision_high_to_low(high_eval: Evaluation) -> TTEval {
     (high_eval / CENTI_PAWN) as TTEval
 }
