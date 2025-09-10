@@ -1,6 +1,6 @@
 use std::{io::stdin, time::Instant};
 
-use crate::{bitboard::Color, r#move::{pretty_string_move, Move}, move_gen::MoveGenType, state::State, tests::perft::perft};
+use crate::{bitboard::{Color, Square}, r#move::{pretty_string_move, Move}, move_gen::MoveGenType, piece_info::PieceType, state::State, tests::perft::perft};
 
 
 pub fn perft_checker(state: &mut State, depth: i64) {
@@ -85,6 +85,13 @@ impl State {
             self.debug_quick_unmake_move(*m);
         }
         result
+    }
+
+    pub fn debug_get_piece_at_square(&mut self, square: Square, color: Color) -> Option<PieceType> {
+        match color {
+            Color::White => self.get_colored_piece_at_square::<{Color::White}>(square),
+            Color::Black => self.get_colored_piece_at_square::<{Color::Black}>(square),
+        }
     }
 
     pub fn debug_move_vec(&mut self) -> Vec<Move> {

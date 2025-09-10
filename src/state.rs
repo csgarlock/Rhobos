@@ -209,8 +209,8 @@ impl State {
         self.move_stack.previous();
     }
 
-    pub fn non_reversible_move(&mut self, m: Move) {
-        match self.turn {
+    pub fn non_reversible_move(&mut self, m: Move) -> bool {
+        let result = match self.turn {
             Color::White => self.make_move::<{Color::White}>(m),
             Color::Black => self.make_move::<{Color::Black}>(m),
         };
@@ -221,6 +221,7 @@ impl State {
         self.hash_history.pop();
         self.check_history.pop();
         self.castle_history.pop();
+        result
     }
     
     #[inline(always)]

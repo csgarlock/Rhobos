@@ -78,7 +78,7 @@ impl MoveList {
     }
 
     #[inline(always)]
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.current = 0;
         self.last = 0;
         self.tt_move = NULL_MOVE;

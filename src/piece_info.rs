@@ -126,7 +126,7 @@ impl PieceType {
     }
 }
 
-pub fn movement_info_init() {
+pub fn move_gen_init() {
     step_info_init();
     fill_moves_boards::<{ PieceType::King }>();
     fill_moves_boards::<{ PieceType::Queen }>();
