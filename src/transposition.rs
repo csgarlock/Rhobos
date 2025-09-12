@@ -1,12 +1,10 @@
-use std::{alloc::{alloc_zeroed, dealloc, Layout}, hint::spin_loop, mem::transmute, ptr::null_mut, sync::atomic::{AtomicBool, Ordering}};
+use std::{alloc::{alloc_zeroed, dealloc, Layout}, mem::transmute, ptr::null_mut};
 
-use crate::{evaluation::{Evaluation, CENTI_PAWN}, r#move::Move, search::Depth, state::State};
+use crate::{evaluation::{Evaluation, CENTI_PAWN}, hash::setup_hashes, r#move::Move, search::Depth, state::State};
 
 const TABLE_ENTRY_SIZE: usize = size_of::<TTableEntry>();
 const TABLE_ENTRY_ALIGN: usize = 64;
 const MEGABYTE_TO_BYTE: usize = 1024 * 1024;
-
-const NUM_LOCKS: usize = 128;
 
 const BIT_MASK_2:  u16 = 0x3;
 const BIT_MASK_14: u16 = 0x3FFF;
@@ -17,7 +15,6 @@ static mut TRANSPOSITION_TABLE: TranspositionTable = TranspositionTable {
     mod_and_mask: 0,
     use_and: false,
     layout: Layout::new::<TTableEntry>(),
-    locks: [const { AtomicBool::new(false) }; NUM_LOCKS],
 };
 
 type TTEval = i16;
@@ -42,7 +39,6 @@ pub struct TranspositionTable {
     mod_and_mask: u64,
     use_and: bool,
     layout: Layout,
-    locks: [AtomicBool; NUM_LOCKS],
 }
 
 #[repr(u8)]
@@ -55,6 +51,7 @@ pub enum NodeType {
 }
 
 pub unsafe fn ttable_init(size_in_mb: usize) {
+    setup_hashes();
     let layout = Layout::from_size_align(size_in_mb * MEGABYTE_TO_BYTE, TABLE_ENTRY_ALIGN).unwrap();
     unsafe { TRANSPOSITION_TABLE.data_pointer = alloc_zeroed(layout) as *mut TTableEntry }
     unsafe { TRANSPOSITION_TABLE.layout = layout };
@@ -88,9 +85,6 @@ pub fn add_tt_state(state: &State, eval: Evaluation, best_move: Move, depth: Dep
     let hash = state.hashcode;
     let index = tt_index(hash);
     debug_assert!(index < unsafe { TRANSPOSITION_TABLE.entries as usize });
-    let lock_index = hash as usize % NUM_LOCKS;
-    unsafe { while TRANSPOSITION_TABLE.locks[lock_index].load(Ordering::Relaxed) {spin_loop();} }
-    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(true, Ordering::Relaxed); }
     unsafe { *TRANSPOSITION_TABLE.data_pointer.add(index) = TTableEntry {
         hash: hash,
         data: TTableData {
@@ -100,7 +94,6 @@ pub fn add_tt_state(state: &State, eval: Evaluation, best_move: Move, depth: Dep
             packed_depth_and_node: ((depth as u16) << 14) | node_type as u16
         }
     }};
-    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(false, Ordering::Relaxed); }
 }
 
 #[inline(always)]
@@ -108,18 +101,13 @@ pub fn search_tt_state(state: &State) -> Option<TTableData> {
     let hash = state.hashcode;
     let index = tt_index(hash);
     debug_assert!(index < unsafe { TRANSPOSITION_TABLE.entries as usize });
-    let lock_index = hash as usize % NUM_LOCKS;
-    unsafe { while TRANSPOSITION_TABLE.locks[lock_index].load(Ordering::Relaxed) {spin_loop();} }
-    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(true, Ordering::Relaxed); }
-    let result = unsafe {
+    unsafe {
         if (*TRANSPOSITION_TABLE.data_pointer.add(index)).hash == hash {
             Some((*TRANSPOSITION_TABLE.data_pointer.add(index)).data)
         } else {
             None
         }
-    };
-    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(false, Ordering::Relaxed); }
-    result
+    }
 }
 
 #[inline(always)]

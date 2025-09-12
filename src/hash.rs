@@ -36,11 +36,11 @@ impl State {
         for color in 0..2 {
             match self.castle_availability[color] {
                 CastleAvailability::Both => {
-                    result ^= unsafe { CASTLE_HASHES[color] };
-                    result ^= unsafe { CASTLE_HASHES[color + 1] };
+                    result ^= unsafe { CASTLE_HASHES[color*2] };
+                    result ^= unsafe { CASTLE_HASHES[color*2 + 1] };
                 },
-                CastleAvailability::King => result ^= unsafe { CASTLE_HASHES[color] },
-                CastleAvailability::Queen => result ^= unsafe { CASTLE_HASHES[color + 1] },
+                CastleAvailability::King => result ^= unsafe { CASTLE_HASHES[color*2] },
+                CastleAvailability::Queen => result ^= unsafe { CASTLE_HASHES[color*2 + 1] },
                 CastleAvailability::None => (),
             }
         }

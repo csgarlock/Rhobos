@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{fmt::Display, hint::unreachable_unchecked, marker::ConstParamTy, mem::transmute};
-use crate::{bitboard::{board_from_square, file, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, hash::{CASTLE_HASHES, EN_PASSANT_HASHES, SQUARE_HASHES}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}, transposition::prefetch_tt_address};
+use crate::{bitboard::{board_from_square, file, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, hash::{BLACK_HASH, CASTLE_HASHES, EN_PASSANT_HASHES, SQUARE_HASHES}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}, transposition::prefetch_tt_address};
 
 #[repr(u8)]
 #[derive(Clone, Copy, ConstParamTy, PartialEq, Eq, Debug)]
@@ -133,7 +133,11 @@ impl State {
 
         self.capture_history.push((capture_entry.piece, capture_entry.bitboard));
         self.update_occupied();
+
         self.turn = C.other();
+        self.hashcode ^= unsafe { BLACK_HASH };
+        debug_assert_eq!(self.hashcode, self.get_hash());
+
         self.move_stack.next();
         match C {
             Color::White => {
@@ -209,6 +213,9 @@ impl State {
         }
         self.turn = C;
         self.update_occupied();
+
+        debug_assert_eq!(self.hashcode, self.get_hash());
+        
         self.move_stack.previous();
     }
 
@@ -338,29 +345,28 @@ impl State {
         if H {
             match A {
                 CastleAvailability::Both => {
-                    self.hashcode = unsafe { CASTLE_HASHES[C as usize] };
-                    self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] };
+                    self.hashcode ^= unsafe { CASTLE_HASHES[C as usize * 2] };
+                    self.hashcode ^= unsafe { CASTLE_HASHES[C as usize * 2 + 1] };
                 },
-                CastleAvailability::King => self.hashcode = unsafe { CASTLE_HASHES[C as usize] },
-                CastleAvailability::Queen => self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] },
+                CastleAvailability::King => self.hashcode ^= unsafe { CASTLE_HASHES[C as usize * 2] },
+                CastleAvailability::Queen => self.hashcode ^= unsafe { CASTLE_HASHES[C as usize * 2 + 1] },
                 CastleAvailability::None => (),
             }
         }
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn clear_castle_availability<const C: Color, const A: CastleAvailability, const H: bool>(&mut self) {
-        let bit_mask = CastleAvailability::bit_mask::<A>();
-        self.castle_availability[C as usize] = unsafe { transmute(self.castle_availability[C as usize] as u8 & !bit_mask) };
-        if H {
-            match A {
-                CastleAvailability::Both => {
-                    self.hashcode = unsafe { CASTLE_HASHES[C as usize] };
-                    self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] };
-                },
-                CastleAvailability::King => self.hashcode = unsafe { CASTLE_HASHES[C as usize] },
-                CastleAvailability::Queen => self.hashcode = unsafe { CASTLE_HASHES[C as usize + 1] },
-                CastleAvailability::None => (),
+        debug_assert!(A != CastleAvailability::Both && A != CastleAvailability::None);
+        if self.castle_availability[C as usize] == CastleAvailability::Both || self.castle_availability[C as usize] == A {
+            let bit_mask = CastleAvailability::bit_mask::<A>();
+            self.castle_availability[C as usize] = unsafe { transmute(self.castle_availability[C as usize] as u8 & !bit_mask) };
+            if H {
+                match A {
+                    CastleAvailability::King => self.hashcode ^= unsafe { CASTLE_HASHES[C as usize * 2] },
+                    CastleAvailability::Queen => self.hashcode ^= unsafe { CASTLE_HASHES[C as usize * 2 + 1] },
+                    _ => unreachable!(),
+                }
             }
         }
     }
@@ -375,10 +381,10 @@ impl State {
 
     #[inline(always)]
     pub fn clear_en_passant<const H: bool>(&mut self) {
-        self.en_passant_square = NULL_SQUARE;
         if H && self.en_passant_square != NULL_SQUARE {
             self.hashcode ^= unsafe { EN_PASSANT_HASHES[file(self.en_passant_square) as usize] }
         }
+        self.en_passant_square = NULL_SQUARE;
     }
 
     #[inline(always)]

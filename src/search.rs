@@ -128,15 +128,12 @@ impl Worker {
                 state.current_move_list().add_tt_move(tt_best_move);
             }
 
-        } else if depth >= INTERNAL_IDS_DEPTH && self.current_iids_depth != depth {
+        } else if depth >= INTERNAL_IDS_DEPTH {
             // Internal iterative deepening search for getting a could first move.
-            let old_iids_depth = self.current_iids_depth;
-            self.current_iids_depth = depth;
             let iids_suggested_move = self.negamax::<C>(state, depth / 2, alpha, beta).1;
             if iids_suggested_move != NULL_MOVE {
                 state.current_move_list().add_tt_move(iids_suggested_move);
             }
-            self.current_iids_depth = old_iids_depth;
         }
 
         let mut best_move = NULL_MOVE;

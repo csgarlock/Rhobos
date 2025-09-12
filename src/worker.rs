@@ -6,7 +6,6 @@ pub struct Worker {
     pub root_ply:    u16,
     pub nodes_searched: u64,
     pub last_ids_score: Evaluation,
-    pub current_iids_depth: Depth
 }
 
 impl Worker {
@@ -16,7 +15,6 @@ impl Worker {
             root_ply: 0,
             nodes_searched: 0,
             last_ids_score: 0,
-            current_iids_depth: -1,
         }
     }
 
