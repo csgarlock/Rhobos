@@ -222,6 +222,18 @@ fn piece_square_table_init() {
 }
 
 #[inline(always)]
+pub fn unchecked_eval_clamp(val: Evaluation, min: Evaluation, max: Evaluation) -> Evaluation {
+    debug_assert!(min <= max);
+    if val < min {
+        min
+    } else if val > max {
+        max
+    } else {
+        val
+    }
+}
+
+#[inline(always)]
 pub fn mate_in(mate_in: Depth, negative: bool) -> Evaluation {
     debug_assert!(mate_in >= 0 && mate_in < 128);
     if negative {

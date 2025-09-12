@@ -1,17 +1,23 @@
-use std::{alloc::{alloc_zeroed, dealloc, Layout}, ptr::null_mut};
+use std::{alloc::{alloc_zeroed, dealloc, Layout}, hint::spin_loop, mem::transmute, ptr::null_mut, sync::atomic::{AtomicBool, Ordering}};
 
 use crate::{evaluation::{Evaluation, CENTI_PAWN}, r#move::Move, search::Depth, state::State};
 
 const TABLE_ENTRY_SIZE: usize = size_of::<TTableEntry>();
-const TABLE_ENTRY_ALIGN: usize = align_of::<TTableEntry>();
+const TABLE_ENTRY_ALIGN: usize = 64;
 const MEGABYTE_TO_BYTE: usize = 1024 * 1024;
+
+const NUM_LOCKS: usize = 128;
+
+const BIT_MASK_2:  u16 = 0x3;
+const BIT_MASK_14: u16 = 0x3FFF;
 
 static mut TRANSPOSITION_TABLE: TranspositionTable = TranspositionTable {
     data_pointer: null_mut(),
     entries: 0,
     mod_and_mask: 0,
     use_and: false,
-    layout: Layout::new::<TTableEntry>()
+    layout: Layout::new::<TTableEntry>(),
+    locks: [const { AtomicBool::new(false) }; NUM_LOCKS],
 };
 
 type TTEval = i16;
@@ -36,9 +42,11 @@ pub struct TranspositionTable {
     mod_and_mask: u64,
     use_and: bool,
     layout: Layout,
+    locks: [AtomicBool; NUM_LOCKS],
 }
 
 #[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum NodeType {
     PVNode,
     CutNode,
@@ -64,6 +72,7 @@ pub unsafe fn free_ttable() {
     unsafe { TRANSPOSITION_TABLE.data_pointer = null_mut(); }
 }
 
+#[inline(always)]
 pub fn tt_index(hash: u64) -> usize {
     unsafe {
         (if TRANSPOSITION_TABLE.use_and {
@@ -74,10 +83,14 @@ pub fn tt_index(hash: u64) -> usize {
     }   
 }
 
+#[inline(always)]
 pub fn add_tt_state(state: &State, eval: Evaluation, best_move: Move, depth: Depth, node_type: NodeType) {
     let hash = state.hashcode;
     let index = tt_index(hash);
     debug_assert!(index < unsafe { TRANSPOSITION_TABLE.entries as usize });
+    let lock_index = hash as usize % NUM_LOCKS;
+    unsafe { while TRANSPOSITION_TABLE.locks[lock_index].load(Ordering::Relaxed) {spin_loop();} }
+    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(true, Ordering::Relaxed); }
     unsafe { *TRANSPOSITION_TABLE.data_pointer.add(index) = TTableEntry {
         hash: hash,
         data: TTableData {
@@ -87,21 +100,29 @@ pub fn add_tt_state(state: &State, eval: Evaluation, best_move: Move, depth: Dep
             packed_depth_and_node: ((depth as u16) << 14) | node_type as u16
         }
     }};
+    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(false, Ordering::Relaxed); }
 }
 
+#[inline(always)]
 pub fn search_tt_state(state: &State) -> Option<TTableData> {
     let hash = state.hashcode;
     let index = tt_index(hash);
     debug_assert!(index < unsafe { TRANSPOSITION_TABLE.entries as usize });
-    unsafe {
+    let lock_index = hash as usize % NUM_LOCKS;
+    unsafe { while TRANSPOSITION_TABLE.locks[lock_index].load(Ordering::Relaxed) {spin_loop();} }
+    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(true, Ordering::Relaxed); }
+    let result = unsafe {
         if (*TRANSPOSITION_TABLE.data_pointer.add(index)).hash == hash {
             Some((*TRANSPOSITION_TABLE.data_pointer.add(index)).data)
         } else {
             None
         }
-    }
+    };
+    unsafe { TRANSPOSITION_TABLE.locks[lock_index].store(false, Ordering::Relaxed); }
+    result
 }
 
+#[inline(always)]
 #[cfg(target_arch = "x86_64")]
 pub fn prefetch_tt_address(state: &State) {
     let hash = state.hashcode;
@@ -110,8 +131,14 @@ pub fn prefetch_tt_address(state: &State) {
     unsafe { std::arch::x86_64::_mm_prefetch::<{std::arch::x86_64::_MM_HINT_T0}>(TRANSPOSITION_TABLE.data_pointer.add(index) as *mut i8) };
 }
 
+#[inline(always)]
 #[cfg(not(target_arch = "x86_64"))]
 pub fn prefetch_tt_address(state: &State) {}
+
+#[inline(always)]
+pub const fn parse_packed_depth_and_node(packed_data: PackedDepthAndNode) -> (Depth, NodeType) {
+    ((packed_data & BIT_MASK_14) as Depth, unsafe { transmute(((packed_data >> 14) & BIT_MASK_2) as u8) })
+}
 
 pub const fn eval_convert_precision_high_to_low(high_eval: Evaluation) -> TTEval {
     (high_eval / CENTI_PAWN) as TTEval

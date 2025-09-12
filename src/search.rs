@@ -1,6 +1,6 @@
-use std::time::{Duration, Instant};
+use std::{hint::unreachable_unchecked, time::{Duration, Instant}};
 
-use crate::{bitboard::Color, evaluation::{mate_in, pretty_string_eval, Evaluation, CENTI_PAWN, NEGATIVE_MATE_ZERO, POSITIVE_MATE_ZERO}, r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickType, state::State, worker::Worker};
+use crate::{bitboard::Color, evaluation::{mate_in, pretty_string_eval, unchecked_eval_clamp, Evaluation, CENTI_PAWN, NEGATIVE_MATE_ZERO, POSITIVE_MATE_ZERO}, r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickType, state::State, transposition::{add_tt_state, eval_convert_precision_low_to_high, parse_packed_depth_and_node, search_tt_state, NodeType}, worker::Worker};
 
 pub type Depth = i32;
 
@@ -9,11 +9,13 @@ const ASPIRATION_OFFSET: [Evaluation; MAX_ASPIRATION_OFFSET_INDEX] = aspiration_
 
 const ASPIRATION_MATE_CUTOFF: Evaluation = 2000 * CENTI_PAWN;
 
+const INTERNAL_IDS_DEPTH: Depth = 5;
+
 impl Worker {
     pub fn iterative_deepening_search(&mut self, state: &mut State, search_time: Duration, info_print: bool) -> Move {
         let start = Instant::now();
-        self.true_depth = 0;
         let start_node_count = self.nodes_searched;
+        self.root_ply = state.ply;
 
         let mut eval_guess = self.last_ids_score;
         let mut aspiration_delta = ASPIRATION_OFFSET[0];
@@ -85,17 +87,56 @@ impl Worker {
     pub fn negamax<const C: Color>(&mut self, state: &mut State, mut depth: Depth, mut alpha: Evaluation, beta: Evaluation) -> (Evaluation, Move) {
         debug_assert_eq!(C, state.turn);
         debug_assert!(alpha < beta);
+
         depth = depth.max(0);
-        
         self.nodes_searched += 1;
-        self.true_depth += 1;
+        let is_root = state.ply == self.root_ply; 
+        
         if depth == 0 {
             let result = match C { 
                 Color::White => self.quiescence_search::<{Color::White}>(state, alpha, beta),
                 Color::Black => self.quiescence_search::<{Color::Black}>(state, alpha, beta),
             };
-            self.true_depth -= 1;
             return result;
+        }
+
+        let tt_result = search_tt_state(state);
+        if let Some(result) = tt_result {
+            let tt_eval = eval_convert_precision_low_to_high(result.eval);
+            let (tt_depth, tt_node_type) = parse_packed_depth_and_node(result.packed_depth_and_node);
+            let tt_best_move = result.best_move;
+            if tt_node_type == NodeType::TerminalNode && !is_root {
+                let return_eval = if tt_eval == 0 {
+                        unchecked_eval_clamp(0, alpha, beta)
+                    } else {
+                        unchecked_eval_clamp(mate_in(
+                            self.true_depth(state.ply),
+                            false
+                        ), alpha, beta)
+                    };
+                    return (return_eval, NULL_MOVE);
+            }
+            if tt_depth >= depth && !is_root {
+                match tt_node_type {
+                    NodeType::PVNode => { if tt_eval >= alpha && tt_eval <= beta { return (tt_eval, tt_best_move) } },
+                    NodeType::CutNode => { if tt_eval >= beta { return (beta, tt_best_move) } },
+                    NodeType::AllNode => { if tt_eval <= alpha { return (alpha, tt_best_move) } },
+                    _ => {debug_assert!(false); unsafe {unreachable_unchecked()}},
+                }
+            }
+            if tt_best_move != NULL_MOVE {
+                state.current_move_list().add_tt_move(tt_best_move);
+            }
+
+        } else if depth >= INTERNAL_IDS_DEPTH && self.current_iids_depth != depth {
+            // Internal iterative deepening search for getting a could first move.
+            let old_iids_depth = self.current_iids_depth;
+            self.current_iids_depth = depth;
+            let iids_suggested_move = self.negamax::<C>(state, depth / 2, alpha, beta).1;
+            if iids_suggested_move != NULL_MOVE {
+                state.current_move_list().add_tt_move(iids_suggested_move);
+            }
+            self.current_iids_depth = old_iids_depth;
         }
 
         let mut best_move = NULL_MOVE;
@@ -109,8 +150,8 @@ impl Worker {
                     Color::Black => -self.negamax::<{Color::White}>(state, depth-1, -beta, -alpha).0,
                 };
                 if score >= beta {
-                    self.true_depth -= 1;
                     state.unmake_move::<C>(current_move);
+                    add_tt_state(state, score, current_move, depth, NodeType::CutNode);
                     return (score, current_move);
                 }
                 if score > alpha {
@@ -123,15 +164,21 @@ impl Worker {
 
         // If no moves were search it means either mate or stalemate
         if !any_searched {
-            self.true_depth -= 1;
             if state.check {
-                return (mate_in(self.true_depth, true), NULL_MOVE);
+                add_tt_state(state, NEGATIVE_MATE_ZERO, NULL_MOVE, depth, NodeType::TerminalNode);
+                return (mate_in(self.true_depth(state.ply), true), NULL_MOVE);
             } else {
+                add_tt_state(state, 0, NULL_MOVE, depth, NodeType::TerminalNode);
                 return (0, NULL_MOVE);
             }
         }
 
-        self.true_depth -= 1;
+        if best_move == NULL_MOVE {
+            add_tt_state(state, alpha, NULL_MOVE, depth, NodeType::AllNode);
+        } else {
+            add_tt_state(state, alpha, best_move, depth, NodeType::PVNode);
+        }
+
         (alpha, best_move)
     }
 
@@ -139,10 +186,8 @@ impl Worker {
         debug_assert_eq!(C, state.turn);
         debug_assert!(alpha < beta);
         self.nodes_searched += 1;
-        self.true_depth += 1;
         let current_eval = state.eval_state(C);
         if current_eval >= beta {
-            self.true_depth -= 1;
             return (beta, NULL_MOVE);
         }
         if alpha < current_eval {
@@ -159,7 +204,6 @@ impl Worker {
                 };
                 if score >= beta {
                     state.unmake_move::<C>(current_move);
-                    self.true_depth -= 1;
                     return (beta, current_move);
                 }
                 if score > alpha {
@@ -169,7 +213,6 @@ impl Worker {
             }
             state.unmake_move::<C>(current_move);
         }
-        self.true_depth -= 1;
         (alpha, best_move)
     }
 }

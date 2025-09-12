@@ -22,12 +22,14 @@ pub mod tests;
 
 use std::{io::{stdin, stdout, Write}, time::Duration};
 
-use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{simple_move_from_string, starting_fen}, piece_info::move_gen_init, worker::Worker};
+use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{simple_move_from_string, starting_fen}, piece_info::move_gen_init, transposition::{free_ttable, ttable_init}, worker::Worker};
 
 fn main() {
     move_gen_init();
     eval_info_init();
+    unsafe { ttable_init(1024) };
     ui_game();
+    unsafe { free_ttable() };
 }
 
 #[allow(dead_code)]
