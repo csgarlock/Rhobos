@@ -124,7 +124,7 @@ impl Worker {
                     } else {
                         unchecked_eval_clamp(mate_in(
                             self.true_depth(state.ply),
-                            false
+                            true,
                         ), alpha, beta)
                     };
                 return (return_eval, NULL_MOVE);
@@ -187,7 +187,8 @@ impl Worker {
                         Color::White => -self.negamax::<{Color::Black}>(state, depth-adjusted_reduction-1, -(alpha + 1), -alpha).0,
                         Color::Black => -self.negamax::<{Color::White}>(state, depth-adjusted_reduction-1, -(alpha + 1), -alpha).0
                     };
-                    should_full_re_search = score > alpha && adjusted_reduction > 0;
+                    // should_full_re_search = true;
+                    should_full_re_search = score > alpha;
                 } else {
                     let adjusted_reduction = reduction / REDUCTION_FACTOR;
                     score = match C {
@@ -232,8 +233,6 @@ impl Worker {
         if move_count == 0 {
             if state.check {
                 add_tt_state(state, NEGATIVE_MATE_ZERO, NULL_MOVE, depth, NodeType::TerminalNode);
-                let temp = mate_in(self.true_depth(state.ply), true).clamp(alpha, beta);
-                println!("{}", temp);
                 return (mate_in(self.true_depth(state.ply), true).clamp(alpha, beta), NULL_MOVE);
             } else {
                 add_tt_state(state, 0, NULL_MOVE, depth, NodeType::TerminalNode);

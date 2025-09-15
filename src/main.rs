@@ -22,7 +22,7 @@ pub mod tests;
 
 use std::{io::{stdin, stdout, Write}, time::Duration};
 
-use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{parse_fen_string, simple_move_from_string, starting_fen}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
+use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{simple_move_from_string, starting_fen}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
 
 fn main() {
     move_gen_init();
@@ -41,7 +41,7 @@ fn ui_game() {
         else if lower_case == "black" || lower_case == "b" { return Some(Color::Black) }
         else { return None; }
     });
-    let mut state = parse_fen_string("2k5/ppp2ppp/2p1b3/4P3/5P2/b1P3PP/P1P4R/RK1n1B2 w - - 0 20".to_string()).unwrap();
+    let mut state = starting_fen();
     let mut worker = Worker::new();
     let mut game_over = false;
     let mut player_turn = if player_side == state.turn { true } else { false };
