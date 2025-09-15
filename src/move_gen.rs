@@ -24,7 +24,7 @@ impl State {
         self.gen_pawn_moves::<C, G>(mask);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn gen_piece_moves<const C: Color, const P: PieceType>(&mut self, mask: Bitboard) {
         debug_assert!(P != PieceType::King && P != PieceType::Pawn);
         let mut piece_board = self.get_piece_board(C, P);
@@ -38,7 +38,7 @@ impl State {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn gen_king_moves<const C: Color, const G: MoveGenType>(&mut self, mask: Bitboard) {
         let king_square = get_lsb(self.get_piece_board(C, PieceType::King));
         let mut move_board = move_bitboard::<{ PieceType::King}>(king_square, self.occupied) & mask;
@@ -61,7 +61,7 @@ impl State {
         }
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn gen_king_castle<const C: Color, const A: CastleAvailability>(&mut self) {
         debug_assert!(A != CastleAvailability::Both && A != CastleAvailability::None);
         let color_shift = C.castle_shift();

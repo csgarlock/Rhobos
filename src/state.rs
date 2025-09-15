@@ -135,6 +135,7 @@ impl State {
         self.update_occupied();
 
         self.turn = C.other();
+        self.ply += 1;
         self.hashcode ^= unsafe { BLACK_HASH };
         debug_assert_eq!(self.hashcode, self.get_hash());
 
@@ -211,7 +212,9 @@ impl State {
             },
             _ => (),
         }
+
         self.turn = C;
+        self.ply -= 1;
         self.update_occupied();
 
         debug_assert_eq!(self.hashcode, self.get_hash());
@@ -232,6 +235,51 @@ impl State {
         self.check_history.pop();
         self.capture_history.pop();
         result
+    }
+    
+    pub fn passing_move<const C: Color>(&mut self) {
+        debug_assert!(!self.check);
+        debug_assert_eq!(C, self.turn);
+
+        // Many of these things not needed but to lazy to optimize for now
+        self.en_passant_history.push(self.en_passant_square);
+        self.castle_history.push(self.castle_availability[C as usize]);
+        self.fifty_move_history.push(self.half_move_clock);
+        self.hash_history.push(self.hashcode);
+        self.check_history.push(self.check);
+        self.capture_history.push((None, EMPTY_BITBOARD));
+
+        self.clear_en_passant::<true>();
+        self.turn = C.other();
+
+        match C {
+            Color::White => {
+                self.check = !self.is_square_safe::<{Color::Black}, false>(
+                    get_lsb(self.get_piece_board(Color::Black, PieceType::King)),
+                    NULL_SQUARE
+                );
+            }
+            Color::Black => {
+                self.check = !self.is_square_safe::<{Color::White}, false>(
+                    get_lsb(self.get_piece_board(Color::White, PieceType::King)),
+                    NULL_SQUARE
+                );
+            }
+        }
+        
+    }
+
+    pub fn un_passing_move<const C: Color>(&mut self) {
+        debug_assert_eq!(C.other(), self.turn);
+
+        self.en_passant_square = self.en_passant_history.pop().value();
+        self.castle_availability[C as usize] = self.castle_history.pop().value();
+        self.half_move_clock = self.fifty_move_history.pop().value();
+        self.hashcode = self.hash_history.pop().value();
+        self.check = self.check_history.pop().value();
+        self.capture_history.pop();
+
+        self.turn = C;
     }
     
     #[inline(always)]

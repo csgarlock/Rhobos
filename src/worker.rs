@@ -20,6 +20,6 @@ impl Worker {
 
     #[inline(always)]
     pub fn true_depth(&self, current_ply: u16) -> Depth {
-        (self.root_ply - current_ply) as Depth
+        (current_ply - self.root_ply) as Depth
     }
 }

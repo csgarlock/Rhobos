@@ -91,7 +91,7 @@ pub fn add_tt_state(state: &State, eval: Evaluation, best_move: Move, depth: Dep
             eval: eval_convert_precision_high_to_low(eval),
             best_move,
             ply: state.ply,
-            packed_depth_and_node: ((depth as u16) << 14) | node_type as u16
+            packed_depth_and_node: ((node_type as u16) << 14) | depth as u16
         }
     }};
 }
@@ -128,10 +128,12 @@ pub const fn parse_packed_depth_and_node(packed_data: PackedDepthAndNode) -> (De
     ((packed_data & BIT_MASK_14) as Depth, unsafe { transmute(((packed_data >> 14) & BIT_MASK_2) as u8) })
 }
 
+#[inline(always)]
 pub const fn eval_convert_precision_high_to_low(high_eval: Evaluation) -> TTEval {
     (high_eval / CENTI_PAWN) as TTEval
 }
 
+#[inline(always)]
 pub const fn eval_convert_precision_low_to_high(low_eval: TTEval) -> Evaluation {
     low_eval as Evaluation * CENTI_PAWN
 }

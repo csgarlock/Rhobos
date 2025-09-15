@@ -254,7 +254,12 @@ pub fn mate_depth(eval: Evaluation) -> Depth {
 }
 
 pub fn pretty_string_eval(raw_eval: Evaluation) -> String {
-    if raw_eval.abs() > MATE_VALUE_CUTOFF {
+    if raw_eval == HIGHEST_EVAL {
+        "MAX".to_string()
+    }
+    else if raw_eval == LOWEST_EVAL {
+        "MIN".to_string()
+    } else if raw_eval.abs() > MATE_VALUE_CUTOFF {
         format!("M{}", mate_depth(raw_eval))
     } else {
         let centi_eval = (raw_eval / CENTI_PAWN) as f64;

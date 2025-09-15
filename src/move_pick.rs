@@ -2,7 +2,7 @@ use std::{marker::ConstParamTy, mem::transmute};
 use crate::{bitboard::Color, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, EN_PASSANT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_gen::MoveGenType, move_list::NUM_KILLERS, piece_info::PieceType, state::State};
 
 // Set to 1 so that there will always be a move better than null move for quiet move ordering.
-static mut HISTORY_TABLE: [[u64; 64]; 12] = [[1; 64]; 12];
+pub static mut HISTORY_TABLE: [[u64; 64]; 12] = [[1; 64]; 12];
 
 #[derive(Clone, Copy, PartialEq, Eq, ConstParamTy)]
 #[repr(u8)]
@@ -23,7 +23,6 @@ pub enum MovePickStage {
 }
 
 impl State {
-    #[inline(always)]
     pub fn pick_next_move<const T: MovePickType>(&mut self) -> bool {
         match self.current_move_list().move_pick_stage {
             MovePickStage::Start => {
@@ -75,7 +74,9 @@ impl State {
                 for i in 0..self.current_move_list().last {
                     let m = self.current_move_list().move_vec[i];
                     for j in 0..NUM_KILLERS {
-                        if self.current_move_list().killer_moves[j] == m {
+                        if self.current_move_list().killer_moves[j] == m && self.current_move_list().killer_moves[j] != NULL_MOVE {
+                            self.current_move_list().move_vec[i] = NULL_MOVE;
+                            self.current_move_list().current = m;
                             return true;
                         }
                     }

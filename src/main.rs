@@ -22,12 +22,13 @@ pub mod tests;
 
 use std::{io::{stdin, stdout, Write}, time::Duration};
 
-use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{parse_fen_string, simple_move_from_string, starting_fen}, piece_info::move_gen_init, transposition::{free_ttable, ttable_init}, worker::Worker};
+use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{parse_fen_string, simple_move_from_string}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
 
 fn main() {
     move_gen_init();
     eval_info_init();
-    unsafe { ttable_init(1024) };
+    search_init();
+    unsafe { ttable_init(2048) };
     ui_game();
     unsafe { free_ttable() };
 }
@@ -40,7 +41,7 @@ fn ui_game() {
         else if lower_case == "black" || lower_case == "b" { return Some(Color::Black) }
         else { return None; }
     });
-    let mut state = parse_fen_string("rnb1k2r/pppp1ppp/5n2/4q3/4P3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 7".into()).unwrap();
+    let mut state = parse_fen_string("rn3rk1/pbppq1pp/1p2pb2/4N2Q/3PN3/3B4/PPP2PPP/R3K2R w KQ - 6 11".into()).unwrap();
     let mut worker = Worker::new();
     let mut game_over = false;
     let mut player_turn = if player_side == state.turn { true } else { false };
@@ -88,7 +89,8 @@ fn ui_game() {
             state.non_reversible_move(best_move);
         }
         state.debug_quick_gen_moves();
-        let moves = state.debug_move_vec();
+        let mut moves = state.debug_move_vec();
+        moves = state.debug_validate_moves(&moves);
         state.current_move_list().reset();
         if moves.len() == 0 {
             println!("{}", state);
