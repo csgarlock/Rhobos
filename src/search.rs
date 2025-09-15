@@ -145,6 +145,8 @@ impl Worker {
         } else if depth >= INTERNAL_IDS_DEPTH {
             // Internal iterative deepening search for getting a good first move.
             let iids_suggested_move = self.negamax::<C>(state, depth / 2, alpha, beta).1;
+            // Reset the move list as after search it is in a garbage state.
+            state.current_move_list().reset();
             if iids_suggested_move != NULL_MOVE {
                 state.current_move_list().add_tt_move(iids_suggested_move);
             }

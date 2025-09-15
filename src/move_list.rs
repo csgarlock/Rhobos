@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickStage, state::State};
 
 pub const MAX_QUIET_MOVES: usize = 50;
@@ -121,5 +123,12 @@ impl State {
     #[inline(always)]
     pub fn current_move_list(&mut self) -> &mut MoveList {
         self.move_stack.get_current()
+    }
+}
+
+impl Debug for MoveValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "quiet: {}, capture: {}", unsafe {self.quiet_val}, unsafe{self.attack_val})?;
+        Ok(())
     }
 }

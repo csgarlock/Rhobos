@@ -11,7 +11,7 @@ pub enum MovePickType {
     Quiescence,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, ConstParamTy)]
+#[derive(Clone, Copy, PartialEq, Eq, ConstParamTy, Debug)]
 #[repr(u8)]
 pub enum MovePickStage {
     Start,
