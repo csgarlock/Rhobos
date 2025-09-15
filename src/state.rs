@@ -250,7 +250,11 @@ impl State {
         self.capture_history.push((None, EMPTY_BITBOARD));
 
         self.clear_en_passant::<true>();
+        self.hashcode ^= unsafe { BLACK_HASH };
         self.turn = C.other();
+        self.move_stack.next();
+
+        debug_assert_eq!(self.hashcode, self.get_hash());
 
         match C {
             Color::White => {
@@ -280,6 +284,9 @@ impl State {
         self.capture_history.pop();
 
         self.turn = C;
+        self.move_stack.previous();
+        
+        debug_assert_eq!(self.hashcode, self.get_hash());
     }
     
     #[inline(always)]

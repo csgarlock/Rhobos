@@ -41,7 +41,7 @@ fn ui_game() {
         else if lower_case == "black" || lower_case == "b" { return Some(Color::Black) }
         else { return None; }
     });
-    let mut state = starting_fen();
+    let mut state = parse_fen_string("2k5/ppp2ppp/2p1b3/4P3/5P2/b1P3PP/P1P4R/RK1n1B2 w - - 0 20".to_string()).unwrap();
     let mut worker = Worker::new();
     let mut game_over = false;
     let mut player_turn = if player_side == state.turn { true } else { false };

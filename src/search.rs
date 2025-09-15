@@ -31,7 +31,6 @@ impl Worker {
         let mut current_depth = 1;
 
         while start.elapsed() < search_time {
-            println!("{}", state.ply);
             if aspiration_window_high > ASPIRATION_MATE_CUTOFF {
                 aspiration_window_low = ASPIRATION_MATE_CUTOFF - (200 * CENTI_PAWN);
                 aspiration_window_high = HIGHEST_EVAL;
@@ -152,21 +151,21 @@ impl Worker {
             }
         }
 
-        // // Null move pruning
-        // if depth > 2 && !state.check && !is_root {
-        //     // don't check for null move pruning if only king and pawns to help avoid mistreating zugzwang positions
-        //     if state.side_occupied[C as usize] != (state.board[(C.board_offset() + PAWN) as usize] | state.board[(C.board_offset() + KING) as usize]) {
-        //         state.passing_move::<C>();
-        //         let score = match C {
-        //             Color::White => -self.negamax::<{Color::Black}>(state, depth-NULL_MOVE_REDUCTION-1, -beta, -beta+1).0,
-        //             Color::Black => -self.negamax::<{Color::White}>(state, depth-NULL_MOVE_REDUCTION-1, -beta, -beta+1).0,
-        //         };
-        //         state.un_passing_move::<C>();
-        //         if score >= beta {
-        //             return (beta, NULL_MOVE);
-        //         }
-        //     } 
-        // }
+        // Null move pruning
+        if depth > 2 && !state.check && !is_root {
+            // don't check for null move pruning if only king and pawns to help avoid mistreating zugzwang positions
+            if state.side_occupied[C as usize] != (state.board[(C.board_offset() + PAWN) as usize] | state.board[(C.board_offset() + KING) as usize]) {
+                state.passing_move::<C>();
+                let score = match C {
+                    Color::White => -self.negamax::<{Color::Black}>(state, depth-NULL_MOVE_REDUCTION-1, -beta, -beta+1).0,
+                    Color::Black => -self.negamax::<{Color::White}>(state, depth-NULL_MOVE_REDUCTION-1, -beta, -beta+1).0,
+                };
+                state.un_passing_move::<C>();
+                if score >= beta {
+                    return (beta, NULL_MOVE);
+                }
+            } 
+        }
 
         let mut best_move = NULL_MOVE;
         let mut move_count = 0;
@@ -233,6 +232,8 @@ impl Worker {
         if move_count == 0 {
             if state.check {
                 add_tt_state(state, NEGATIVE_MATE_ZERO, NULL_MOVE, depth, NodeType::TerminalNode);
+                let temp = mate_in(self.true_depth(state.ply), true).clamp(alpha, beta);
+                println!("{}", temp);
                 return (mate_in(self.true_depth(state.ply), true).clamp(alpha, beta), NULL_MOVE);
             } else {
                 add_tt_state(state, 0, NULL_MOVE, depth, NodeType::TerminalNode);
