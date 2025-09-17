@@ -40,6 +40,7 @@ pub const WHITE_VAL: u8 = 0;
 pub const BLACK_VAL: u8 = 1;
 pub const WHITE_OFFSET: u8 = 0;
 pub const BLACK_OFFSET: u8 = 6;
+pub const COLORS: [Color; 2] = [Color::White, Color::Black];
 
 pub const RANKS: [Bitboard; 8] = [RANK0, RANK1, RANK2, RANK3, RANK4, RANK5, RANK6, RANK7];
 pub const FILES: [Bitboard; 8] = [FILE0, FILE1, FILE2, FILE3, FILE4, FILE5, FILE6, FILE7];

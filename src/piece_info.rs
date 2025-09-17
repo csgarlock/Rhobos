@@ -72,6 +72,9 @@ pub const BLACK_PAWN:   u8 = BLACK_OFFSET + PAWN;
 
 pub const NO_PIECE:     u8 = BLACK_PAWN + 1;
 
+pub const PIECES: [PieceType; 6] = [PieceType::King, PieceType::Queen, PieceType::Rook, PieceType::Bishop, PieceType::Knight, PieceType::Pawn];
+pub const PIECES_NO_PAWN: [PieceType; 5] = [PieceType::King, PieceType::Queen, PieceType::Rook, PieceType::Bishop, PieceType::Knight];
+
 pub const CARDINAL_STEPS: [Step; 8] = [RIGHT_STEP, UP_RIGHT_STEP, UP_STEP, UP_LEFT_STEP, LEFT_STEP, DOWN_LEFT_STEP, DOWN_STEP, DOWN_RIGHT_STEP];
 pub const ALL_STEPS:      [Step; 16] = [RIGHT_STEP, UP_RIGHT_STEP, UP_STEP, UP_LEFT_STEP, LEFT_STEP, DOWN_LEFT_STEP, DOWN_STEP, DOWN_RIGHT_STEP, KNIGHT_RIGHT_UP_STEP, KNIGHT_UP_RIGHT_STEP, KNIGHT_UP_LEFT_STEP, KNIGHT_LEFT_UP_STEP, KNIGHT_LEFT_DOWN_STEP, KNIGHT_DOWN_LEFT_STEP, KNIGHT_DOWN_RIGHT_STEP, KNIGHT_RIGHT_DOWN_STEP];
 

@@ -1,4 +1,6 @@
-use crate::{bitboard::{bit_count, get_lsb, pop_lsb, Color, EMPTY_BITBOARD}, piece_info::{PieceType, BLACK_KING, WHITE_BISHOP, WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK}, search::Depth, state::State};
+use std::cmp::min;
+
+use crate::{bitboard::{bit_count, get_lsb, pop_lsb, Bitboard, Color, COLORS, EMPTY_BITBOARD}, piece_info::{move_bitboard, PieceType, BLACK_KING, KING, MOVE_BOARDS, WHITE_BISHOP, WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK}, search::Depth, state::State};
 
 pub type Evaluation = i32;
 
@@ -20,6 +22,18 @@ pub const KNIGHT_PHASE_VALUE: u8 = 1;
 pub const PAWN_PHASE_VALUE: u8 = 0;
 pub const PIECE_PHASE_TABLE: [u8; 6] = [KING_PHASE_VALUE, QUEEN_PHASE_VALUE, ROOK_PHASE_VALUE, BISHOP_PHASE_VALUE, KNIGHT_PHASE_VALUE, PAWN_PHASE_VALUE];
 pub const TOTAL_PHASE_VALUE: u8 = (KING_PHASE_VALUE + QUEEN_PHASE_VALUE + ROOK_PHASE_VALUE*2 + BISHOP_PHASE_VALUE*2 + KNIGHT_PHASE_VALUE*2 + PAWN_PHASE_VALUE*8) * 2;
+
+pub const MOBILITY_VALUE: Evaluation = 1 * CENTI_PAWN;
+
+pub const KING_KING_SAFETY_VALUE: u32 = 1;
+pub const QUEEN_KING_SAFETY_VALUE: u32 = 2;
+pub const ROOK_KING_SAFETY_VALUE: u32 = 2;
+pub const BISHOP_KING_SAFETY_VALUE: u32 = 3;
+pub const KNIGHT_KING_SAFETY_VALUE: u32 = 5;
+pub const PAWN_KING_SAFETY_VALUE: u32 = 1;
+pub const PIECE_KING_SAFETY_VALUES: [u32; 6] = [KING_KING_SAFETY_VALUE, QUEEN_KING_SAFETY_VALUE, ROOK_KING_SAFETY_VALUE, BISHOP_KING_SAFETY_VALUE, KNIGHT_KING_SAFETY_VALUE, PAWN_KING_SAFETY_VALUE];
+
+pub const KING_SAFETY_TABLE: [Evaluation; 100] = king_safety_table();
 
 pub const LOWEST_EVAL: Evaluation = -2147483646 + CENTI_PAWN - 2; // The lowest 32 bit value such that the 16 least significant bits are all 0
 pub const HIGHEST_EVAL: Evaluation = 2147483646 - CENTI_PAWN + 2; // The lowest 32 bit value such that the 16 least significant bits are all 0
@@ -72,11 +86,60 @@ impl State {
         let endgame_phase_val = TOTAL_PHASE_VALUE - midgame_phase_val;
         eval += (midgame_table_eval * midgame_phase_val as i32 + endgame_table_eval * endgame_phase_val as i32) / TOTAL_PHASE_VALUE as i32;
 
+        for color in COLORS {
+            let king_square = get_lsb(self.get_piece_board(color, PieceType::King));
+            let king_neighbors = unsafe {MOVE_BOARDS[KING as usize][king_square as usize]};
+            let mut running_mobility_count = 0;
+            let mut running_king_attacks = 0;
+
+            let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::King}>(color, king_neighbors);
+            running_mobility_count += mobility_count; running_king_attacks += king_attacks;
+            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Queen}>(color, king_neighbors);
+            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
+            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Rook}>(color, king_neighbors);
+            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
+            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Bishop}>(color, king_neighbors);
+            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
+            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Knight}>(color, king_neighbors);
+            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
+            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Pawn}>(color, king_neighbors);
+            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
+
+            match color {
+                Color::White => {
+                    eval += running_mobility_count as Evaluation * MOBILITY_VALUE;
+                    eval += KING_SAFETY_TABLE[min(running_king_attacks, 99) as usize] * CENTI_PAWN;
+                },
+                Color::Black => {
+                    eval -= running_mobility_count as Evaluation * MOBILITY_VALUE;
+                    eval -= KING_SAFETY_TABLE[min(running_king_attacks, 99) as usize] * CENTI_PAWN;
+                },
+            }
+        }
+
         match perspective {
             Color::White => eval,
             Color::Black => -eval,
         }.clamp(-MATE_VALUE_CUTOFF, MATE_VALUE_CUTOFF)
 
+    }
+
+    #[inline(always)]
+    fn mobility_and_king_attacks<const P: PieceType>(&self, color: Color, king_neighbors: Bitboard) -> (u32, u32) {
+        let mut mobility_count = 0;
+        let mut king_attacks = 0;
+        let mut piece_board = self.get_piece_board(color, P);
+        if P != PieceType::Pawn {
+            while piece_board != EMPTY_BITBOARD {
+                let piece_square = pop_lsb(&mut piece_board);
+                let moves = move_bitboard::<P>(piece_square, self.occupied);
+                mobility_count += bit_count(moves);
+                king_attacks += bit_count(moves & king_neighbors) * PIECE_KING_SAFETY_VALUES[P as usize];
+            }
+        } else {
+
+        }
+        (mobility_count, king_attacks)
     }
 }
 
@@ -221,6 +284,19 @@ fn piece_square_table_init() {
             }
         }
     }
+}
+
+const fn king_safety_table() -> [Evaluation; 100] {
+    [0,  0,   1,   2,   3,   5,   7,   9,  12,  15,
+    18,  22,  26,  30,  35,  39,  44,  50,  56,  62,
+    68,  75,  82,  85,  89,  97, 105, 113, 122, 131,
+    140, 150, 169, 180, 191, 202, 213, 225, 237, 248,
+    260, 272, 283, 295, 307, 319, 330, 342, 354, 366,
+    377, 389, 401, 412, 424, 436, 448, 459, 471, 483,
+    494, 500, 500, 500, 500, 500, 500, 500, 500, 500,
+    500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
+    500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
+    500, 500, 500, 500, 500, 500, 500, 500, 500, 500,]
 }
 
 #[inline(always)]
