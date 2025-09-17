@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickStage, state::State};
+use crate::{evaluation::Evaluation, r#move::{pretty_string_move, Move, NULL_MOVE}, move_pick::MovePickStage, state::State};
 
 pub const MAX_QUIET_MOVES: usize = 50;
 pub const MAX_CAPTURE_MOVES: usize = 40;
@@ -14,7 +14,7 @@ pub struct MoveStack {
 
 #[derive(Clone, Copy)]
 pub union MoveValue {
-    pub attack_val: i8,
+    pub attack_val: Evaluation,
     pub quiet_val: u64,
 }
 
@@ -27,6 +27,8 @@ pub struct MoveList {
     pub move_pick_stage: MovePickStage,
     pub tt_move: Move,
     pub killer_moves: [Move; NUM_KILLERS],
+    pub is_futile: bool,
+    pub futility_margin: Evaluation,
 }
 
 impl MoveStack {
@@ -76,6 +78,8 @@ impl MoveList {
             move_pick_stage: MovePickStage::Start,
             tt_move: NULL_MOVE,
             killer_moves: [NULL_MOVE; NUM_KILLERS],
+            is_futile: false,
+            futility_margin: 0,
         }
     }
 
@@ -85,6 +89,8 @@ impl MoveList {
         self.last = 0;
         self.tt_move = NULL_MOVE;
         self.move_pick_stage = MovePickStage::Start;
+        self.is_futile = false;
+        self.futility_margin = 0;
     }
 
     #[inline(always)]

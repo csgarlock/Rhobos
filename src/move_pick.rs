@@ -1,5 +1,5 @@
 use std::{marker::ConstParamTy, mem::transmute};
-use crate::{bitboard::Color, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, EN_PASSANT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_gen::MoveGenType, move_list::NUM_KILLERS, piece_info::PieceType, state::State};
+use crate::{bitboard::Color, evaluation::{PAWN_EVAL, PIECE_EVAL_TABLE}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, EN_PASSANT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_gen::MoveGenType, move_list::NUM_KILLERS, piece_info::PieceType, state::State};
 
 // Set to 1 so that there will always be a move better than null move for quiet move ordering.
 pub static mut HISTORY_TABLE: [[u64; 64]; 12] = [[1; 64]; 12];
@@ -48,7 +48,7 @@ impl State {
             MovePickStage::CaptureMoves => {
                 let mut best_move = NULL_MOVE;
                 let mut best_index = 0;
-                let mut best_move_score = i8::MIN;
+                let mut best_move_score = i32::MIN;
                 for i in 0..self.current_move_list().last {
                     let contending_move = self.current_move_list().move_vec[i];
                     if contending_move == NULL_MOVE {
@@ -128,13 +128,17 @@ impl State {
                         MovePickStage::CaptureMoves
                     },
                     MovePickStage::CaptureMoves => {
-                        self.current_move_list().last = 0;
-                        match self.turn {
-                            Color::White => self.gen_all_moves::<{Color::White}, {MoveGenType::Quiet}>(),
-                            Color::Black => self.gen_all_moves::<{Color::Black}, {MoveGenType::Quiet}>(),
+                        if self.current_move_list().is_futile {
+                            MovePickStage::Done
+                        } else {
+                            self.current_move_list().last = 0;
+                            match self.turn {
+                                Color::White => self.gen_all_moves::<{Color::White}, {MoveGenType::Quiet}>(),
+                                Color::Black => self.gen_all_moves::<{Color::Black}, {MoveGenType::Quiet}>(),
+                            }
+                            self.assign_quiet_scores();
+                            MovePickStage::KillerMoves
                         }
-                        self.assign_quiet_scores();
-                        MovePickStage::KillerMoves
                     },
                     MovePickStage::KillerMoves => MovePickStage::QuietMoves,
                     MovePickStage::QuietMoves => MovePickStage::Done,
@@ -171,7 +175,12 @@ impl State {
     pub fn assign_capture_scores(&mut self) {
         for i in 0..self.current_move_list().last {
             let m = self.current_move_list().move_vec[i];
-            self.current_move_list().value_vec[i].attack_val = self.move_capture_score(m)
+            let (lva_mvv, futility_score) = self.move_capture_score(m);
+            if self.current_move_list().is_futile && futility_score < self.current_move_list().futility_margin {
+                self.current_move_list().move_vec[i] = NULL_MOVE;
+            } else {
+                self.current_move_list().value_vec[i].attack_val = lva_mvv;
+            }
         }
     }
 
@@ -184,18 +193,26 @@ impl State {
         unsafe { HISTORY_TABLE[src_piece_type as usize][move_destination_square(m) as usize] }
     }
 
+    // First return is lva-mva second is victim value/pawn_promotion value
     #[inline(always)]
-    pub fn move_capture_score(&self, m: Move) -> i8 {
+    pub fn move_capture_score(&self, m: Move) -> (i32, i32) {
         if move_special_type(m) == PROMOTION_SPECIAL_MOVE {
             let promotion_type: PieceType = unsafe {transmute(move_special_info(m) + 1)};
-            return promotion_type.lva_mvv_value()
+            if let Some(des) = match self.turn {
+                Color::White => self.get_colored_piece_at_square::<{Color::Black}>(move_destination_square(m)),
+                Color::Black => self.get_colored_piece_at_square::<{Color::White}>(move_destination_square(m)),
+            } {
+                return (PIECE_EVAL_TABLE[promotion_type as usize], PIECE_EVAL_TABLE[promotion_type as usize] + PIECE_EVAL_TABLE[des as usize])
+            } else {
+                return (PIECE_EVAL_TABLE[promotion_type as usize], PIECE_EVAL_TABLE[promotion_type as usize]);
+            }
         }
         // Currently this check is technically not needed since force_get_colored_piece_at_square returns PieceType::Pawn
         // if there is no piece present, but it is currently set to panic in debug if no piece is present. So this
         // may want to be changed in future, but since relying on that is asking for a subtle bug in the future it may want
         // to be kept this way for now.
         if move_special_type(m) == EN_PASSANT_SPECIAL_MOVE {
-            return 0;
+            return (0, PAWN_EVAL);
         }
         let (src, des) = match self.turn {
             Color::White => {
@@ -207,6 +224,6 @@ impl State {
                 self.force_get_colored_piece_at_square::<{Color::White}>(move_destination_square(m)))
             }
         };
-        des.lva_mvv_value() - src.lva_mvv_value()
+        (PIECE_EVAL_TABLE[des as usize] - PIECE_EVAL_TABLE[src as usize], PIECE_EVAL_TABLE[des as usize])
     }
 }

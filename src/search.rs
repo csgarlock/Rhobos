@@ -1,6 +1,6 @@
 use std::{hint::unreachable_unchecked, time::{Duration, Instant}};
 
-use crate::{bitboard::{board_from_square, Color, EMPTY_BITBOARD}, evaluation::{mate_in, pretty_string_eval, unchecked_eval_clamp, Evaluation, CENTI_PAWN, HIGHEST_EVAL, LOWEST_EVAL, MATE_VALUE_CUTOFF, NEGATIVE_MATE_ZERO}, r#move::{move_destination_square, move_origin_square, pretty_string_move, Move, NULL_MOVE}, move_pick::{MovePickType, HISTORY_TABLE}, piece_info::{KING, PAWN}, state::State, transposition::{add_tt_state, eval_convert_precision_low_to_high, parse_packed_depth_and_node, search_tt_state, NodeType}, worker::Worker};
+use crate::{bitboard::{board_from_square, Color, EMPTY_BITBOARD}, evaluation::{mate_in, pretty_string_eval, unchecked_eval_clamp, Evaluation, CENTI_PAWN, HIGHEST_EVAL, LOWEST_EVAL, MATE_VALUE_CUTOFF, NEGATIVE_MATE_ZERO}, r#move::{build_simple_move, move_destination_square, move_origin_square, pretty_string_move, Move, NULL_MOVE}, move_pick::{MovePickType, HISTORY_TABLE}, piece_info::{KING, PAWN}, state::State, transposition::{add_tt_state, eval_convert_precision_low_to_high, parse_packed_depth_and_node, search_tt_state, NodeType}, worker::Worker};
 
 pub type Depth = i32;
 pub type Reduction = i32;
@@ -13,6 +13,8 @@ const ASPIRATION_MATE_CUTOFF: Evaluation = 2000 * CENTI_PAWN;
 const INTERNAL_IDS_DEPTH: Depth = 5;
 
 const REDUCTION_FACTOR: Reduction = 1024;
+
+const FUTILITY_MARGIN: Evaluation = CENTI_PAWN * 300;
 
 const NULL_MOVE_REDUCTION: Depth = 2;
 static mut LATE_MOVE_REDUCTION_TABLE: [[Reduction; 64]; 64] = [[0; 64]; 64];
@@ -55,6 +57,11 @@ impl Worker {
                 if info_print {
                     println!("Search failed low");
                 }
+                if aspiration_window_high == HIGHEST_EVAL {
+                    aspiration_delta = ASPIRATION_OFFSET[usize::min(current_depth as usize, MAX_ASPIRATION_OFFSET_INDEX - 1)];
+                    aspiration_window_high = aspiration_delta;
+                    aspiration_window_low = -aspiration_delta
+                }
                 aspiration_window_low -= aspiration_delta;
                 aspiration_window_high -= aspiration_delta / 3;
                 aspiration_delta *= 2;
@@ -63,9 +70,15 @@ impl Worker {
                 if info_print {
                     println!("Search failed high");
                 }
-                aspiration_window_low += aspiration_delta / 3;
-                aspiration_window_high += aspiration_delta;
-                aspiration_delta *= 2;
+                if aspiration_window_low == LOWEST_EVAL {
+                    aspiration_delta = ASPIRATION_OFFSET[usize::min(current_depth as usize, MAX_ASPIRATION_OFFSET_INDEX - 1)];
+                    aspiration_window_high = aspiration_delta;
+                    aspiration_window_low = -aspiration_delta;
+                } else {
+                    aspiration_window_low += aspiration_delta / 3;
+                    aspiration_window_high += aspiration_delta;
+                    aspiration_delta *= 2;
+                }
             } else {
                 if info_print {
                     println!("Search in bounds");
@@ -167,6 +180,17 @@ impl Worker {
             } 
         }
 
+        // Futility pruning
+        let mut is_futile = false;
+        if depth == 1 && !state.check && alpha > -ASPIRATION_MATE_CUTOFF && beta < ASPIRATION_MATE_CUTOFF {
+            let static_eval = state.eval_state(C);
+            if static_eval < alpha - FUTILITY_MARGIN {
+                is_futile = true;
+                state.current_move_list().is_futile = true;
+                state.current_move_list().futility_margin = alpha - FUTILITY_MARGIN - static_eval;
+            }
+        }
+
         let mut best_move = NULL_MOVE;
         let mut move_count = 0;
         while state.pick_next_move::<{MovePickType::Negamax}>() {
@@ -230,7 +254,8 @@ impl Worker {
         }
 
         // If no moves were search it means either mate or stalemate
-        if move_count == 0 {
+        // Don't check if node is futile because not all nodes have been searched
+        if move_count == 0 && !is_futile {
             if state.check {
                 add_tt_state(state, NEGATIVE_MATE_ZERO, NULL_MOVE, depth, NodeType::TerminalNode);
                 return (mate_in(self.true_depth(state.ply), true).clamp(alpha, beta), NULL_MOVE);

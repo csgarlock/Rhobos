@@ -410,7 +410,7 @@ impl State {
         }
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn clear_castle_availability<const C: Color, const A: CastleAvailability, const H: bool>(&mut self) {
         debug_assert!(A != CastleAvailability::Both && A != CastleAvailability::None);
         if self.castle_availability[C as usize] == CastleAvailability::Both || self.castle_availability[C as usize] == A {
