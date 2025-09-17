@@ -137,7 +137,7 @@ impl State {
                 king_attacks += bit_count(moves & king_neighbors) * PIECE_KING_SAFETY_VALUES[P as usize];
             }
         } else {
-
+            
         }
         (mobility_count, king_attacks)
     }
