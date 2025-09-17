@@ -22,7 +22,7 @@ pub mod tests;
 
 use std::{io::{stdin, stdout, Write}, time::Duration};
 
-use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{parse_fen_string, simple_move_from_string, starting_fen}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
+use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{simple_move_from_string, starting_fen}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
 
 fn main() {
     move_gen_init();
@@ -37,14 +37,14 @@ fn main() {
 fn ui_game() {
     let player_side = prompt_until("What color do you want (white/black): ", |str| {
         let lower_case = str.to_lowercase();
-        if lower_case == "white" || lower_case == "w" { return Some(Color::White) }
-        else if lower_case == "black" || lower_case == "b" { return Some(Color::Black) }
-        else { return None; }
+        if lower_case == "white" || lower_case == "w" { Some(Color::White) }
+        else if lower_case == "black" || lower_case == "b" { Some(Color::Black) }
+        else { None }
     });
     let mut state = starting_fen();
     let mut worker = Worker::new();
     let mut game_over = false;
-    let mut player_turn = if player_side == state.turn { true } else { false };
+    let mut player_turn = player_side == state.turn;
     while !game_over {
         println!("{}", state);
         if player_turn {
@@ -68,10 +68,10 @@ fn ui_game() {
             if move_special_type(user_move) == PROMOTION_SPECIAL_MOVE {
                 let promotion = prompt_until("What piece do you want to promote to (queen/rook/bishop/knight): ", |str| {
                     match str.to_lowercase() {
-                        val if val == "queen".to_string() => Some(QUEEN_PROMOTION),
-                        val if val == "rook".to_string() => Some(ROOK_PROMOTION),
-                        val if val == "bishop".to_string() => Some(BISHOP_PROMOTION),
-                        val if val == "knight".to_string() => Some(KNIGHT_PROMOTION),
+                        val if val == "queen" => Some(QUEEN_PROMOTION),
+                        val if val == "rook" => Some(ROOK_PROMOTION),
+                        val if val == "bishop" => Some(BISHOP_PROMOTION),
+                        val if val == "knight" => Some(KNIGHT_PROMOTION),
                         _ => None
                     }
                 });
@@ -92,7 +92,7 @@ fn ui_game() {
         let mut moves = state.debug_move_vec();
         moves = state.debug_validate_moves(&moves);
         state.current_move_list().reset();
-        if moves.len() == 0 {
+        if moves.is_empty() {
             println!("{}", state);
             if state.check {
                 if player_turn {

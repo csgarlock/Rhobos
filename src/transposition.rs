@@ -60,7 +60,7 @@ pub unsafe fn ttable_init(size_in_mb: usize) {
     // is power of two
     if entries.count_ones() == 1 {
         unsafe { TRANSPOSITION_TABLE.use_and = true }
-        unsafe { TRANSPOSITION_TABLE.mod_and_mask = entries as u64 - 1}
+        unsafe { TRANSPOSITION_TABLE.mod_and_mask = entries - 1}
     }
 }
 

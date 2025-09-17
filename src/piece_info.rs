@@ -126,6 +126,7 @@ impl PieceType {
     }
 }
 
+#[cold]
 pub fn move_gen_init() {
     step_info_init();
     fill_moves_boards::<{ PieceType::King }>();
@@ -137,6 +138,7 @@ pub fn move_gen_init() {
     magic_init();
 }
 
+#[cold]
 fn step_info_init() {
     const CENTER_SQUARE: Square = 35;
     const CENTER_RANK: u8 = rank(CENTER_SQUARE);
@@ -156,6 +158,7 @@ fn step_info_init() {
     }
 }
 
+#[cold]
 fn fill_moves_boards<const P: PieceType>() {
     match P {
         PieceType::Queen | PieceType::Rook | PieceType::Bishop => {

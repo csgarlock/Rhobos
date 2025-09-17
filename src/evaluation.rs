@@ -80,10 +80,12 @@ impl State {
     }
 }
 
+#[cold]
 pub fn eval_info_init() {
     piece_square_table_init();
 }
 
+#[cold]
 fn piece_square_table_init() {
     unsafe {
         MIDGAME_PIECE_SQUARE_TABLE[WHITE_KING as usize] = [

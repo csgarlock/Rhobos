@@ -48,6 +48,7 @@ pub static mut ROOK_MAGICS: [Magic; 64] = [Magic {mask: 0, magic_number: 0, inde
 pub static mut BISHOP_TABLE: [Bitboard; 0x1480] = [EMPTY_BITBOARD; 0x1480];
 pub static mut ROOK_TABLE: [Bitboard; 0x19000] = [EMPTY_BITBOARD; 0x19000];
 
+#[cold]
 pub fn magic_init() {
     const ROOK_MAGIC_SEED: [[u8; 16]; 4] = [[121, 127, 184, 174, 169,  98, 124, 185,   1,  34, 155, 108,  28,   9,   4, 186],
                                             [ 97, 244, 185,  57, 161, 116, 207,  93, 144, 129, 147, 248, 158,  75, 255, 136],
