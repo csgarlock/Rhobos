@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use crate::{bitboard::{bit_count, file, get_lsb, pop_lsb, rank, shift_bitboard, Bitboard, Color, COLORS, EMPTY_BITBOARD, FILES, RANKS}, piece_info::{move_bitboard, Direction, PieceType, BLACK_KING, KING, MOVE_BOARDS, PAWN, WHITE_BISHOP, WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK}, search::Depth, state::State};
+use crate::{bitboard::{bit_count, board_from_square, file, get_lsb, pop_lsb, rank, shift_bitboard, Bitboard, Color, COLORS, EMPTY_BITBOARD, FILES, RANKS}, piece_info::{move_bitboard, Direction, PieceType, BLACK_KING, KING, MOVE_BOARDS, PAWN, WHITE_BISHOP, WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK}, search::Depth, state::State};
 
 pub type Evaluation = i32;
 
@@ -26,10 +26,10 @@ pub const TOTAL_PHASE_VALUE: u8 = (KING_PHASE_VALUE + QUEEN_PHASE_VALUE + ROOK_P
 pub const MOBILITY_VALUE: Evaluation = 1 * CENTI_PAWN;
 
 pub const KING_KING_SAFETY_VALUE: u32 = 1;
-pub const QUEEN_KING_SAFETY_VALUE: u32 = 2;
-pub const ROOK_KING_SAFETY_VALUE: u32 = 2;
-pub const BISHOP_KING_SAFETY_VALUE: u32 = 3;
-pub const KNIGHT_KING_SAFETY_VALUE: u32 = 5;
+pub const QUEEN_KING_SAFETY_VALUE: u32 = 5;
+pub const ROOK_KING_SAFETY_VALUE: u32 = 3;
+pub const BISHOP_KING_SAFETY_VALUE: u32 = 2;
+pub const KNIGHT_KING_SAFETY_VALUE: u32 = 2;
 pub const PAWN_KING_SAFETY_VALUE: u32 = 1;
 pub const PIECE_KING_SAFETY_VALUES: [u32; 6] = [KING_KING_SAFETY_VALUE, QUEEN_KING_SAFETY_VALUE, ROOK_KING_SAFETY_VALUE, BISHOP_KING_SAFETY_VALUE, KNIGHT_KING_SAFETY_VALUE, PAWN_KING_SAFETY_VALUE];
 
@@ -51,7 +51,7 @@ pub const PAWN_DOUBLED_VALUE: Evaluation = -25 * CENTI_PAWN;
 pub const PAWN_PASSED_VALUE: Evaluation = 50 * CENTI_PAWN;
 
 //[white passed, black passed, isolated, empty for better cache line alignment]
-static mut PAWN_EVAL_LOOKUP_BOARDS: [[Bitboard; 4]; 64] = [[0; 4]; 64];
+pub static mut PAWN_EVAL_LOOKUP_BOARDS: [[Bitboard; 4]; 64] = [[0; 4]; 64];
 
 impl State {
     pub fn eval_state(&self, perspective: Color) -> Evaluation {
@@ -94,23 +94,23 @@ impl State {
         eval += (midgame_table_eval * midgame_phase_val as i32 + endgame_table_eval * endgame_phase_val as i32) / TOTAL_PHASE_VALUE as i32;
 
         for color in COLORS {
-            let king_square = get_lsb(self.get_piece_board(color, PieceType::King));
+            let king_square = get_lsb(self.get_piece_board(color.other(), PieceType::King));
             let king_neighbors = unsafe {MOVE_BOARDS[KING as usize][king_square as usize]};
             let mut running_mobility_count = 0;
             let mut running_king_attacks = 0;
 
             let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::King}>(color, king_neighbors);
             running_mobility_count += mobility_count; running_king_attacks += king_attacks;
-            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Queen}>(color, king_neighbors);
-            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
-            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Rook}>(color, king_neighbors);
-            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
-            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Bishop}>(color, king_neighbors);
-            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
-            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Knight}>(color, king_neighbors);
-            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
-            let (mobility_score, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Pawn}>(color, king_neighbors);
-            running_mobility_count += mobility_score; running_king_attacks += king_attacks;
+            let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Queen}>(color, king_neighbors);
+            running_mobility_count += mobility_count; running_king_attacks += king_attacks;
+            let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Rook}>(color, king_neighbors);
+            running_mobility_count += mobility_count; running_king_attacks += king_attacks;
+            let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Bishop}>(color, king_neighbors);
+            running_mobility_count += mobility_count; running_king_attacks += king_attacks;
+            let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Knight}>(color, king_neighbors);
+            running_mobility_count += mobility_count; running_king_attacks += king_attacks;
+            let (mobility_count, king_attacks) = self.mobility_and_king_attacks::<{PieceType::Pawn}>(color, king_neighbors);
+            running_mobility_count += mobility_count; running_king_attacks += king_attacks;
 
             match color {
                 Color::White => {
@@ -135,7 +135,7 @@ impl State {
                     // Isolated Pawn
                     eval_offset += PAWN_ISOLATED_VALUE;
                 }
-                if FILES[file(pawn_square) as usize] & friend_pawn_board != EMPTY_BITBOARD {
+                if FILES[file(pawn_square) as usize] & friend_pawn_board != board_from_square(pawn_square) {
                     // Doubled pawn
                     eval_offset += PAWN_DOUBLED_VALUE;
                 }
@@ -176,14 +176,14 @@ impl State {
             let up_left;
             match color {
                 Color::White => {
-                    single_board = shift_bitboard::<{Direction::Up}>(piece_board) & !self.side_occupied[color.other() as usize];
-                    double_board = shift_bitboard::<{Direction::Up}>(single_board) & !self.side_occupied[color.other() as usize];
+                    single_board = shift_bitboard::<{Direction::Up}>(piece_board) & self.not_occupied;
+                    double_board = shift_bitboard::<{Direction::Up}>(single_board & RANKS[2]) & self.not_occupied;
                     up_right = shift_bitboard::<{Direction::UpRight}>(piece_board);
                     up_left = shift_bitboard::<{Direction::UpLeft}>(piece_board);
                 },
                 Color::Black => {
-                    single_board = shift_bitboard::<{Direction::Down}>(piece_board) & !self.side_occupied[color.other() as usize];
-                    double_board = shift_bitboard::<{Direction::Down}>(single_board) & !self.side_occupied[color.other() as usize];
+                    single_board = shift_bitboard::<{Direction::Down}>(piece_board) & self.not_occupied;
+                    double_board = shift_bitboard::<{Direction::Down}>(single_board & RANKS[5]) & self.not_occupied;
                     up_right = shift_bitboard::<{Direction::DownRight}>(piece_board);
                     up_left = shift_bitboard::<{Direction::DownLeft}>(piece_board);
                 },
