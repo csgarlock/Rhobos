@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use crate::{bitboard::{bit_count, get_lsb, pop_lsb, Bitboard, Color, COLORS, EMPTY_BITBOARD}, piece_info::{move_bitboard, PieceType, BLACK_KING, KING, MOVE_BOARDS, WHITE_BISHOP, WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK}, search::Depth, state::State};
+use crate::{bitboard::{bit_count, file, get_lsb, pop_lsb, rank, shift_bitboard, Bitboard, Color, COLORS, EMPTY_BITBOARD, FILES, RANKS}, piece_info::{move_bitboard, Direction, PieceType, BLACK_KING, KING, MOVE_BOARDS, PAWN, WHITE_BISHOP, WHITE_KING, WHITE_KNIGHT, WHITE_PAWN, WHITE_QUEEN, WHITE_ROOK}, search::Depth, state::State};
 
 pub type Evaluation = i32;
 
@@ -45,6 +45,13 @@ pub const MATE_VALUE_CUTOFF: Evaluation = CENTI_PAWN * 30_000;
 
 static mut MIDGAME_PIECE_SQUARE_TABLE: [[Evaluation; 64]; 12] = [[0; 64]; 12];
 static mut ENDGAME_PIECE_SQUARE_TABLE: [[Evaluation; 64]; 12] = [[0; 64]; 12];
+
+pub const PAWN_ISOLATED_VALUE: Evaluation = -25 * CENTI_PAWN;
+pub const PAWN_DOUBLED_VALUE: Evaluation = -25 * CENTI_PAWN;
+pub const PAWN_PASSED_VALUE: Evaluation = 50 * CENTI_PAWN;
+
+//[white passed, black passed, isolated, empty for better cache line alignment]
+static mut PAWN_EVAL_LOOKUP_BOARDS: [[Bitboard; 4]; 64] = [[0; 4]; 64];
 
 impl State {
     pub fn eval_state(&self, perspective: Color) -> Evaluation {
@@ -117,6 +124,32 @@ impl State {
             }
         }
 
+        for color in COLORS {
+            let mut eval_offset = 0;
+            let mut mut_friend_pawn_board = self.get_piece_board(color, PieceType::Pawn);
+            let friend_pawn_board = self.get_piece_board(color, PieceType::Pawn);
+            let enemy_pawn_board = self.get_piece_board(color.other(), PieceType::Pawn);
+            while mut_friend_pawn_board != EMPTY_BITBOARD {
+                let pawn_square = pop_lsb(&mut mut_friend_pawn_board);
+                if unsafe { PAWN_EVAL_LOOKUP_BOARDS[pawn_square as usize][2] & friend_pawn_board == EMPTY_BITBOARD} {
+                    // Isolated Pawn
+                    eval_offset += PAWN_ISOLATED_VALUE;
+                }
+                if FILES[file(pawn_square) as usize] & friend_pawn_board != EMPTY_BITBOARD {
+                    // Doubled pawn
+                    eval_offset += PAWN_DOUBLED_VALUE;
+                }
+                if unsafe { PAWN_EVAL_LOOKUP_BOARDS[pawn_square as usize][color as usize] & enemy_pawn_board == EMPTY_BITBOARD } {
+                    // Passed pawn
+                    eval_offset += PAWN_PASSED_VALUE;
+                }
+            }
+            match color {
+                Color::White => { eval += eval_offset },
+                Color::Black => { eval -= eval_offset },
+            }
+        }
+
         match perspective {
             Color::White => eval,
             Color::Black => -eval,
@@ -137,7 +170,26 @@ impl State {
                 king_attacks += bit_count(moves & king_neighbors) * PIECE_KING_SAFETY_VALUES[P as usize];
             }
         } else {
-            
+            let single_board;
+            let double_board;
+            let up_right;
+            let up_left;
+            match color {
+                Color::White => {
+                    single_board = shift_bitboard::<{Direction::Up}>(piece_board) & !self.side_occupied[color.other() as usize];
+                    double_board = shift_bitboard::<{Direction::Up}>(single_board) & !self.side_occupied[color.other() as usize];
+                    up_right = shift_bitboard::<{Direction::UpRight}>(piece_board);
+                    up_left = shift_bitboard::<{Direction::UpLeft}>(piece_board);
+                },
+                Color::Black => {
+                    single_board = shift_bitboard::<{Direction::Down}>(piece_board) & !self.side_occupied[color.other() as usize];
+                    double_board = shift_bitboard::<{Direction::Down}>(single_board) & !self.side_occupied[color.other() as usize];
+                    up_right = shift_bitboard::<{Direction::DownRight}>(piece_board);
+                    up_left = shift_bitboard::<{Direction::DownLeft}>(piece_board);
+                },
+            }
+            mobility_count += bit_count(single_board | double_board);
+            king_attacks += (bit_count(up_right & king_neighbors) + bit_count(up_left & king_neighbors)) * PIECE_KING_SAFETY_VALUES[PAWN as usize];
         }
         (mobility_count, king_attacks)
     }
@@ -145,7 +197,33 @@ impl State {
 
 #[cold]
 pub fn eval_info_init() {
+    pawn_eval_boards();
     piece_square_table_init();
+}
+
+#[cold]
+fn pawn_eval_boards() {
+    for square in 0..64 {
+        let mut isolated_board = EMPTY_BITBOARD;
+        let file = file(square);
+        if file != 0 {
+            isolated_board |= FILES[file as usize - 1];
+        }
+        if file != 7 {
+            isolated_board |= FILES[file as usize + 1];
+        }
+        unsafe { PAWN_EVAL_LOOKUP_BOARDS[square as usize][2] = isolated_board };
+        
+        let mut passed_board = isolated_board | FILES[file as usize];
+        let rank = rank(square);
+        for r in 0..=rank {
+            passed_board &= !RANKS[r as usize];
+        }
+        unsafe {
+            PAWN_EVAL_LOOKUP_BOARDS[square as usize][0] = passed_board;
+            PAWN_EVAL_LOOKUP_BOARDS[square as usize ^ 56][1] = passed_board.swap_bytes();
+        }
+    }
 }
 
 #[cold]
