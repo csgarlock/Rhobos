@@ -16,13 +16,14 @@ pub mod piece_info;
 pub mod search;
 pub mod state;
 pub mod transposition;
+pub mod uci;
 pub mod worker;
 
 pub mod tests;
 
 use std::{io::{stdin, stdout, Write}, time::Duration};
 
-use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type, BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION}, parsing::{simple_move_from_string, starting_fen}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
+use crate::{bitboard::Color, evaluation::eval_info_init, r#move::{BISHOP_PROMOTION, KNIGHT_PROMOTION, PROMOTION_SPECIAL_MOVE, QUEEN_PROMOTION, ROOK_PROMOTION, build_move, debug_same_src_des, move_destination_square, move_origin_square, move_special_type}, parsing::{simple_move_from_string, starting_fen}, piece_info::move_gen_init, search::search_init, transposition::{free_ttable, ttable_init}, worker::Worker};
 
 fn main() {
     move_gen_init();

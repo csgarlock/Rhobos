@@ -9,7 +9,7 @@ pub const CENTI_PAWN: Evaluation = 65536;
 pub const KING_EVAL: Evaluation = 0; 
 pub const QUEEN_EVAL: Evaluation = CENTI_PAWN * 900;
 pub const ROOK_EVAL: Evaluation = CENTI_PAWN * 500;
-pub const BISHOP_EVAL: Evaluation = CENTI_PAWN * 325;
+pub const BISHOP_EVAL: Evaluation = CENTI_PAWN * 330;
 pub const KNIGHT_EVAL: Evaluation = CENTI_PAWN * 300;
 pub const PAWN_EVAL: Evaluation = CENTI_PAWN * 100;
 pub const PIECE_EVAL_TABLE: [Evaluation; 6] = [KING_EVAL, QUEEN_EVAL, ROOK_EVAL, BISHOP_EVAL, KNIGHT_EVAL, PAWN_EVAL];
@@ -47,7 +47,7 @@ static mut MIDGAME_PIECE_SQUARE_TABLE: [[Evaluation; 64]; 12] = [[0; 64]; 12];
 static mut ENDGAME_PIECE_SQUARE_TABLE: [[Evaluation; 64]; 12] = [[0; 64]; 12];
 
 pub const PAWN_ISOLATED_VALUE: Evaluation = -25 * CENTI_PAWN;
-pub const PAWN_DOUBLED_VALUE: Evaluation = -25 * CENTI_PAWN;
+pub const PAWN_DOUBLED_VALUE: Evaluation = -15 * CENTI_PAWN;
 pub const PAWN_PASSED_VALUE: Evaluation = 50 * CENTI_PAWN;
 
 //[white passed, black passed, isolated, empty for better cache line alignment]

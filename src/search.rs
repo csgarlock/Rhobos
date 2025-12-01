@@ -14,7 +14,7 @@ const INTERNAL_IDS_DEPTH: Depth = 5;
 
 const REDUCTION_FACTOR: Reduction = 1024;
 
-const FUTILITY_MARGIN: Evaluation = CENTI_PAWN * 300;
+const FUTILITY_MARGIN: Evaluation = CENTI_PAWN * 200;
 
 const NULL_MOVE_REDUCTION: Depth = 2;
 static mut LATE_MOVE_REDUCTION_TABLE: [[Reduction; 64]; 64] = [[0; 64]; 64];
@@ -107,7 +107,7 @@ impl Worker {
 
     pub fn negamax<const C: Color>(&mut self, state: &mut State, mut depth: Depth, mut alpha: Evaluation, beta: Evaluation) -> (Evaluation, Move) {
         debug_assert_eq!(C, state.turn);
-        debug_assert!(alpha < beta);
+        debug_assert!(alpha < beta); 
 
         // Quick fix for now. This does not need to be called every time as make_move usually handles this, however
         // when a search is repeated at the same depth from LMR re searches, IIDS, ect.., the current move
@@ -187,7 +187,7 @@ impl Worker {
             if static_eval < alpha - FUTILITY_MARGIN {
                 is_futile = true;
                 state.current_move_list().is_futile = true;
-                state.current_move_list().futility_margin = alpha - FUTILITY_MARGIN - static_eval;
+                state.current_move_list().futility_margin = alpha - static_eval + FUTILITY_MARGIN;
             }
         }
 

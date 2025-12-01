@@ -80,6 +80,7 @@ pub fn magic_init() {
     assert_eq!(EXPECTED_BISHOP_PASSES + EXPECTED_ROOK_PASSES, running_total);
 }
 
+#[cold]
 fn find_magic<const P: PieceType>(square: Square, magic: &mut Magic, magic_table: &mut [Bitboard], rng: &mut Xoroshiro128PlusPlus) -> (usize, u64) {
     match P {
         PieceType::King | PieceType::Queen | PieceType::Pawn | PieceType::Knight => return (0, 0),

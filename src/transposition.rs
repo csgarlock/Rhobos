@@ -20,7 +20,7 @@ static mut TRANSPOSITION_TABLE: TranspositionTable = TranspositionTable {
 type TTEval = i16;
 type PackedDepthAndNode = u16;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct TTableData {
     pub eval: TTEval,
     pub best_move: Move,
@@ -28,6 +28,7 @@ pub struct TTableData {
     pub packed_depth_and_node: PackedDepthAndNode,
 } 
 
+#[derive(PartialEq, Eq)]
 pub struct TTableEntry {
     hash: u64,
     data: TTableData,
@@ -67,6 +68,18 @@ pub unsafe fn ttable_init(size_in_mb: usize) {
 pub unsafe fn free_ttable() {
     unsafe { dealloc(TRANSPOSITION_TABLE.data_pointer as *mut u8, TRANSPOSITION_TABLE.layout); }
     unsafe { TRANSPOSITION_TABLE.data_pointer = null_mut(); }
+}
+
+#[cold]
+#[allow(dead_code)]
+pub unsafe fn calculate_ttable_usage() -> f64{
+    let mut counter = 0;
+    for i in 0..unsafe{TRANSPOSITION_TABLE.entries} {
+        if unsafe {*TRANSPOSITION_TABLE.data_pointer.add(i as usize) != TTableEntry { hash: 0, data: TTableData { eval: 0, best_move: 0, ply: 0, packed_depth_and_node: 0 } }} {
+            counter += 1
+        }
+    }
+    counter as f64 / unsafe { TRANSPOSITION_TABLE.entries as f64 }
 }
 
 #[inline(always)]

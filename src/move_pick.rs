@@ -176,7 +176,7 @@ impl State {
         for i in 0..self.current_move_list().last {
             let m = self.current_move_list().move_vec[i];
             let (lva_mvv, futility_score) = self.move_capture_score(m);
-            if self.current_move_list().is_futile && futility_score < self.current_move_list().futility_margin {
+            if self.current_move_list().is_futile && futility_score > self.current_move_list().futility_margin {
                 self.current_move_list().move_vec[i] = NULL_MOVE;
             } else {
                 self.current_move_list().value_vec[i].attack_val = lva_mvv;

@@ -81,7 +81,6 @@ impl State {
         }
     }
 
-    #[inline]
     pub fn gen_pawn_moves<const C: Color, const G: MoveGenType>(&mut self, mask: Bitboard) {
 
         let enemy_board = self.side_occupied[C.other() as usize];

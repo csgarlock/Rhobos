@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{fmt::Display, hint::unreachable_unchecked, marker::ConstParamTy, mem::transmute};
-use crate::{bitboard::{board_from_square, file, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, hash::{BLACK_HASH, CASTLE_HASHES, EN_PASSANT_HASHES, SQUARE_HASHES}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}, transposition::prefetch_tt_address};
+use crate::{bitboard::{board_from_square, file, get_lsb, is_valid_square, pop_lsb, rank, Bitboard, Board, Color, Square, EMPTY_BITBOARD, NULL_SQUARE}, hash::{BLACK_HASH, CASTLE_HASHES, EN_PASSANT_HASHES, SQUARE_HASHES}, histories::{CaptureEntry, CastleHistoryEntry, EnPassantEntry, FiftyMoveHistory, History, HistoryEntry}, r#move::{move_destination_square, move_origin_square, move_special_info, move_special_type, Move, CASTLE_SPECIAL_MOVE, EN_PASSANT_SPECIAL_MOVE, NOT_SPECIAL_MOVE, NULL_MOVE, PROMOTION_SPECIAL_MOVE}, move_list::MoveStack, piece_info::{make_step, move_bitboard, PieceType, Step, PAWN_ATTACK_BOARDS}};
 
 #[repr(u8)]
 #[derive(Clone, Copy, ConstParamTy, PartialEq, Eq, Debug)]
@@ -129,7 +129,7 @@ impl State {
             _ => { debug_assert!(false); unsafe { unreachable_unchecked() }; },
         }
 
-        prefetch_tt_address(self);
+        // prefetch_tt_address(self);
 
         self.capture_history.push((capture_entry.piece, capture_entry.bitboard));
         self.update_occupied();

@@ -259,7 +259,7 @@ pub const unsafe fn get_step_id(step: Step) -> usize {
         KNIGHT_DOWN_RIGHT_STEP => {14},
         KNIGHT_RIGHT_DOWN_STEP => {15},
         _ => {
-            unsafe { unreachable_unchecked() }
+            unsafe { debug_assert!(false); unreachable_unchecked() }
         }
     }
 }  
